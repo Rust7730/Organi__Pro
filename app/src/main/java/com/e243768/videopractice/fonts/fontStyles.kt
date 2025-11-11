@@ -20,7 +20,7 @@ class fontStyles(){
         textAlign = TextAlign.Center
     )
 
-    val smallText: TextStyle = TextStyle( fontSize = 24.sp )
+    val smallText: TextStyle = TextStyle( fontSize = 24.sp, color = Variables.Color6 )
     val smallHighlightedText: TextStyle = TextStyle(
         fontSize = 24.sp,
         fontWeight = Bold,
