@@ -4,6 +4,7 @@ import androidx.compose.runtime.Composable
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import com.e243768.videopractice.fonts.fontStyles
 import com.e243768.videopractice.navigation.Routes
 import com.e243768.videopractice.views.loading
 import com.e243768.videopractice.views.login
@@ -11,16 +12,14 @@ import com.e243768.videopractice.views.vista
 
 @Composable
 fun vistas() {
-
-
-
-        val navController = rememberNavController()
+    val navController = rememberNavController()
+    val styles = fontStyles()
         NavHost(navController = navController, startDestination = Routes.Loading, builder = {
             composable(Routes.Intro) {
-                vista(navController)
+                vista(navController, styles)
             }
             composable(Routes.Login) {
-                login()
+                login(navController, styles)
             }
             composable(Routes.Loading) {
                 loading(navController)

@@ -19,19 +19,3 @@ class MainActivity : ComponentActivity() {
         }
     }
 }
-
-/* TextField(value = firstNumber, onValueChange = {
-                        firstNumber = it
-                    })
-                    TextField(value = secondtNumber, onValueChange = {
-                        secondtNumber = it
-                    })
-                    Column(modifier = Modifier.padding(innerPadding)) {
-                        Row{
-                            buttons(firstNumber,secondtNumber)
-
-                        }
-                    }
-
-                }
-                */

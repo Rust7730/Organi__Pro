@@ -26,10 +26,11 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.navigation.NavController
 import GradientWithStarsBackground
 import com.e243768.videopractice.R
+import com.e243768.videopractice.fonts.fontStyles
 import com.e243768.videopractice.navigation.Routes
 
 @Composable
-fun vista (navController: NavController){
+fun vista (navController: NavController, styles: fontStyles){
 
     Box(modifier = Modifier.fillMaxSize()) {
         GradientWithStarsBackground()
@@ -51,10 +52,8 @@ fun vista (navController: NavController){
                 Text(
                     "Organiza tus tareas \n" +
                             "Con OrganiPro",
-                    fontSize = 24.sp,
-                    fontWeight = Bold,
-                    color = MaterialTheme.colorScheme.onBackground,
-                    textAlign = TextAlign.Center
+                    style = styles.smallHighlightedText,
+                    color = MaterialTheme.colorScheme.onBackground
                 )
                 Spacer(modifier = Modifier.padding(15.dp))
                 Button(
@@ -67,7 +66,7 @@ fun vista (navController: NavController){
                     ),
                     modifier = Modifier.width(300.dp),
                 ) {
-                    Text("Siguiente", fontSize = 24.sp)
+                    Text("Siguiente", style=styles.smallText)
                 }
             }
         }
