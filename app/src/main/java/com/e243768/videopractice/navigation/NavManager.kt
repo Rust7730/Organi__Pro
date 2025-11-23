@@ -9,6 +9,7 @@ import com.e243768.videopractice.navigation.Routes
 import com.e243768.videopractice.styles.componentStyles
 import com.e243768.videopractice.views.loading
 import com.e243768.videopractice.views.login
+import com.e243768.videopractice.views.signUp
 import com.e243768.videopractice.views.vista
 
 @Composable
@@ -26,7 +27,9 @@ fun vistas() {
         composable(Routes.Loading) {
             loading(navController)
         }
-
+        composable(Routes.SignUp) {
+            signUp(navController, styles, compStyles)
+        }
 
     })
 
