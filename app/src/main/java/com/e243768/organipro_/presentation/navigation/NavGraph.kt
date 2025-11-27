@@ -6,6 +6,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import com.e243768.organipro_.presentation.views.auth.login.LoginScreen
 import com.e243768.organipro_.presentation.views.auth.signup.SignUpScreen
+import com.e243768.organipro_.presentation.views.home.HomeScreen
 import com.e243768.organipro_.presentation.views.intro.IntroScreen
 import com.e243768.organipro_.presentation.views.splash.LoadingScreen
 
@@ -35,8 +36,8 @@ fun AppNavGraph(
             SignUpScreen(navController)
         }
 
-        // Home (placeholder por ahora)
         composable(Routes.Home) {
+            HomeScreen(navController = navController)
         }
 
         // Leaderboard (placeholder por ahora)
