@@ -6,13 +6,15 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import com.e243768.organipro_.presentation.views.auth.login.LoginScreen
 import com.e243768.organipro_.presentation.views.auth.signup.SignUpScreen
+import com.e243768.organipro_.presentation.views.home.HomeScreen
 import com.e243768.organipro_.presentation.views.intro.IntroScreen
 import com.e243768.organipro_.presentation.views.splash.LoadingScreen
+import com.e243768.organipro_.presentation.views.tasks.daily.DailyTasksScreen
 
 @Composable
 fun AppNavGraph(
     navController: NavHostController,
-    startDestination: String = Routes.Login
+    startDestination: String = Routes.DailyTasks
 ) {
     NavHost(
         navController = navController,
@@ -35,8 +37,8 @@ fun AppNavGraph(
             SignUpScreen(navController)
         }
 
-        // Home (placeholder por ahora)
         composable(Routes.Home) {
+            HomeScreen(navController = navController)
         }
 
         // Leaderboard (placeholder por ahora)
@@ -51,8 +53,8 @@ fun AppNavGraph(
         composable(Routes.Settings) {
         }
 
-        // Daily Tasks (placeholder por ahora)
         composable(Routes.DailyTasks) {
+            DailyTasksScreen(navController)
         }
 
         // Weekly Tasks (placeholder por ahora)

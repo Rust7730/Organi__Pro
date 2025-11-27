@@ -8,6 +8,5 @@ fun NavManager() {
     val navController = rememberNavController()
     AppNavGraph(
         navController = navController,
-        startDestination = Routes.Splash
     )
 }
