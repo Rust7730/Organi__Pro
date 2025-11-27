@@ -4,6 +4,7 @@ import androidx.compose.runtime.Composable
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import com.e243768.organipro_.presentation.views.splash.LoadingScreen
 
 @Composable
 fun AppNavGraph(
@@ -15,6 +16,8 @@ fun AppNavGraph(
         startDestination = startDestination
     ) {
         composable(Routes.Splash) {
+            LoadingScreen(navController)
+
         }
 
         composable(Routes.Intro) {
