@@ -62,7 +62,7 @@ fun IntroScreen(
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
-        gradientLigthly()
+        GradientWithStarsBackground()
 
         Scaffold(
             containerColor = Color.Transparent,

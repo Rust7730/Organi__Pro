@@ -4,13 +4,14 @@ import androidx.compose.runtime.Composable
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import com.e243768.organipro_.presentation.views.auth.login.LoginScreen
 import com.e243768.organipro_.presentation.views.intro.IntroScreen
 import com.e243768.organipro_.presentation.views.splash.LoadingScreen
 
 @Composable
 fun AppNavGraph(
     navController: NavHostController,
-    startDestination: String = Routes.Splash
+    startDestination: String = Routes.Login
 ) {
     NavHost(
         navController = navController,
@@ -25,8 +26,8 @@ fun AppNavGraph(
             IntroScreen(navController)
         }
 
-        // Login (placeholder por ahora)
         composable(Routes.Login) {
+            LoginScreen(navController)
         }
 
         // SignUp (placeholder por ahora)
