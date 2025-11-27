@@ -1,13 +1,11 @@
 package com.e243768.organipro_.presentation.views.auth.login.components
 
-import android.R
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
@@ -16,7 +14,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.e243768.organipro_.presentation.views.login.components.AppTextField
+import com.e243768.organipro_.presentation.components.AppTextField
 import com.e243768.organipro_.presentation.viewmodels.auth.login.LoginUiState
 
 @Composable

@@ -1,4 +1,4 @@
-package com.e243768.organipro_.presentation.views.login.components
+package com.e243768.organipro_.presentation.components
 
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.shape.RoundedCornerShape

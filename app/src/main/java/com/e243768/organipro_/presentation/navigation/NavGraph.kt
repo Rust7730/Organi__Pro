@@ -5,6 +5,7 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import com.e243768.organipro_.presentation.views.auth.login.LoginScreen
+import com.e243768.organipro_.presentation.views.auth.signup.SignUpScreen
 import com.e243768.organipro_.presentation.views.intro.IntroScreen
 import com.e243768.organipro_.presentation.views.splash.LoadingScreen
 
@@ -30,8 +31,8 @@ fun AppNavGraph(
             LoginScreen(navController)
         }
 
-        // SignUp (placeholder por ahora)
         composable(Routes.SignUp) {
+            SignUpScreen(navController)
         }
 
         // Home (placeholder por ahora)
