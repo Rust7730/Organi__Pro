@@ -6,6 +6,9 @@ object FirebaseConstants {
     const val COLLECTION_TASKS = "tasks"
     const val COLLECTION_LEADERBOARD = "leaderboard"
     const val COLLECTION_ACHIEVEMENTS = "achievements"
+    const val COLLECTION_ATTACHMENTS = "attachments"
+    const val COLLECTION_USER_STATS = "user_stats"
+
 
     // Sub-collections
     const val SUBCOLLECTION_DAILY_TASKS = "daily_tasks"

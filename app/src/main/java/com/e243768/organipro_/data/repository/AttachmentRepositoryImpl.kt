@@ -1,16 +1,23 @@
 package com.e243768.organipro_.data.repository
 
+import android.net.Uri
+import com.e243768.organipro_.core.constants.FirebaseConstants
 import com.e243768.organipro_.core.result.Result
 import com.e243768.organipro_.data.local.dao.AttachmentDao
 import com.e243768.organipro_.data.local.entities.AttachmentEntity
+import com.e243768.organipro_.data.remote.firebase.FirebaseFirestoreService
+import com.e243768.organipro_.data.remote.firebase.FirebaseStorageService
+import com.e243768.organipro_.data.remote.mappers.AttachmentMapper
 import com.e243768.organipro_.domain.model.Attachment
 import com.e243768.organipro_.domain.repository.AttachmentRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import java.io.File
 
 class AttachmentRepositoryImpl(
-    private val attachmentDao: AttachmentDao
-    // private val firebaseStorage: FirebaseStorage // TODO: Agregar cuando tengamos Firebase
+    private val attachmentDao: AttachmentDao,
+    private val firestoreService: FirebaseFirestoreService,
+    private val storageService: FirebaseStorageService
 ) : AttachmentRepository {
 
     override suspend fun getAttachmentById(attachmentId: String): Result<Attachment> {
@@ -43,8 +50,18 @@ class AttachmentRepositoryImpl(
 
     override suspend fun addAttachment(attachment: Attachment): Result<Attachment> {
         return try {
+            // 1. Guardar en local
             val entity = AttachmentEntity.fromDomain(attachment, synced = false)
             attachmentDao.insertAttachment(entity)
+
+            // 2. Guardar metadata en Firestore
+            val attachmentMap = AttachmentMapper.toFirebaseMap(attachment)
+            firestoreService.setDocument(
+                collection = "${FirebaseConstants.COLLECTION_TASKS}/${attachment.taskId}/${FirebaseConstants.COLLECTION_ATTACHMENTS}",
+                documentId = attachment.id,
+                data = attachmentMap
+            )
+
             Result.Success(attachment)
         } catch (e: Exception) {
             Result.Error("Error al agregar archivo: ${e.message}", e)
@@ -53,8 +70,26 @@ class AttachmentRepositoryImpl(
 
     override suspend fun deleteAttachment(attachmentId: String): Result<Unit> {
         return try {
-            attachmentDao.deleteAttachmentById(attachmentId)
-            // TODO: Eliminar de Firebase Storage también
+            val attachmentResult = getAttachmentById(attachmentId)
+            if (attachmentResult is Result.Success) {
+                val attachment = attachmentResult.data
+
+                // 1. Eliminar de local
+                attachmentDao.deleteAttachmentById(attachmentId)
+
+                // 2. Eliminar de Firebase Storage
+                if (attachment.isUploaded) {
+                    // Extraer path del URL o usar localPath
+                    // storageService.deleteFile(path)
+                }
+
+                // 3. Eliminar metadata de Firestore
+                firestoreService.deleteDocument(
+                    collection = "${FirebaseConstants.COLLECTION_TASKS}/${attachment.taskId}/${FirebaseConstants.COLLECTION_ATTACHMENTS}",
+                    documentId = attachmentId
+                )
+            }
+
             Result.Success(Unit)
         } catch (e: Exception) {
             Result.Error("Error al eliminar archivo: ${e.message}", e)
@@ -63,7 +98,13 @@ class AttachmentRepositoryImpl(
 
     override suspend fun deleteAttachmentsByTaskId(taskId: String): Result<Unit> {
         return try {
-            attachmentDao.deleteAttachmentsByTaskId(taskId)
+            val attachmentsResult = getAttachmentsByTaskId(taskId)
+            if (attachmentsResult is Result.Success) {
+                attachmentsResult.data.forEach { attachment ->
+                    deleteAttachment(attachment.id)
+                }
+            }
+
             Result.Success(Unit)
         } catch (e: Exception) {
             Result.Error("Error al eliminar archivos: ${e.message}", e)
@@ -74,21 +115,39 @@ class AttachmentRepositoryImpl(
         attachment: Attachment,
         localFilePath: String
     ): Result<Attachment> {
-        // TODO: Implementar cuando tengamos Firebase Storage
         return try {
-            // 1. Subir archivo a Firebase Storage
-            // val storageRef = firebaseStorage.reference.child("attachments/${attachment.id}")
-            // val uploadTask = storageRef.putFile(Uri.fromFile(File(localFilePath)))
-            // val downloadUrl = uploadTask.await().storage.downloadUrl.await()
+            // 1. Generar path en Storage
+            val storagePath = storageService.generateAttachmentPath(
+                userId = "userId", // Obtener del contexto o parámetro
+                taskId = attachment.taskId,
+                fileName = attachment.name
+            )
 
-            // 2. Actualizar URL en la base de datos local
+            // 2. Subir archivo a Firebase Storage
+            val downloadUrl = storageService.uploadFile(
+                path = storagePath,
+                fileUri = Uri.fromFile(File(localFilePath))
+            )
+
+            // 3. Actualizar attachment con URL
             val updatedAttachment = attachment.copy(
-                url = "https://firebase-url.com/${attachment.id}", // URL temporal
+                url = downloadUrl,
                 isUploaded = true
             )
 
+            // 4. Actualizar en local
             val entity = AttachmentEntity.fromDomain(updatedAttachment, synced = true)
             attachmentDao.updateAttachment(entity)
+
+            // 5. Actualizar metadata en Firestore
+            firestoreService.updateDocument(
+                collection = "${FirebaseConstants.COLLECTION_TASKS}/${attachment.taskId}/${FirebaseConstants.COLLECTION_ATTACHMENTS}",
+                documentId = attachment.id,
+                updates = mapOf(
+                    "url" to downloadUrl,
+                    "isUploaded" to true
+                )
+            )
 
             Result.Success(updatedAttachment)
         } catch (e: Exception) {
@@ -97,12 +156,17 @@ class AttachmentRepositoryImpl(
     }
 
     override suspend fun downloadAttachment(attachment: Attachment): Result<String> {
-        // TODO: Implementar cuando tengamos Firebase Storage
         return try {
-            // 1. Descargar desde Firebase Storage
-            // 2. Guardar en almacenamiento local
-            // 3. Devolver ruta local
-            Result.Success(attachment.localPath ?: "")
+            // 1. Crear archivo temporal
+            val tempFile = File.createTempFile(attachment.name, null)
+
+            // 2. Descargar desde Firebase Storage
+            val downloadedFile = storageService.downloadFile(
+                path = attachment.url, // O extraer path del URL
+                destinationFile = tempFile
+            )
+
+            Result.Success(downloadedFile.absolutePath)
         } catch (e: Exception) {
             Result.Error("Error al descargar archivo: ${e.message}", e)
         }

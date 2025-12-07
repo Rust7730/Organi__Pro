@@ -1,9 +1,13 @@
 package com.e243768.organipro_.data.repository
 
+import com.e243768.organipro_.core.constants.FirebaseConstants
 import com.e243768.organipro_.core.result.Result
 import com.e243768.organipro_.core.util.PointsCalculator
 import com.e243768.organipro_.data.local.dao.UserDao
 import com.e243768.organipro_.data.local.entities.UserEntity
+import com.e243768.organipro_.data.remote.firebase.FirebaseAuthService
+import com.e243768.organipro_.data.remote.firebase.FirebaseFirestoreService
+import com.e243768.organipro_.data.remote.mappers.UserMapper
 import com.e243768.organipro_.domain.model.User
 import com.e243768.organipro_.domain.repository.UserRepository
 import kotlinx.coroutines.flow.Flow
@@ -12,17 +16,20 @@ import java.util.Date
 
 class UserRepositoryImpl(
     private val userDao: UserDao,
-    // private val firebaseFirestore: FirebaseFirestore // TODO: Agregar cuando tengamos Firebase
+    private val firebaseAuthService: FirebaseAuthService,
+    private val firestoreService: FirebaseFirestoreService
 ) : UserRepository {
 
     override suspend fun getUserById(userId: String): Result<User> {
         return try {
+            // Intentar obtener de local primero
             val userEntity = userDao.getUserById(userId)
             if (userEntity != null) {
-                Result.Success(userEntity.toDomain())
-            } else {
-                Result.Error("Usuario no encontrado")
+                return Result.Success(userEntity.toDomain())
             }
+
+            // Si no está en local, obtener de Firebase
+            fetchUserFromRemote(userId)
         } catch (e: Exception) {
             Result.Error("Error al obtener usuario: ${e.message}", e)
         }
@@ -47,7 +54,7 @@ class UserRepositoryImpl(
 
     override suspend fun saveUser(user: User): Result<Unit> {
         return try {
-            val userEntity = UserEntity.Companion.fromDomain(user, synced = false)
+            val userEntity = UserEntity.fromDomain(user, synced = false)
             userDao.insertUser(userEntity)
             Result.Success(Unit)
         } catch (e: Exception) {
@@ -58,7 +65,7 @@ class UserRepositoryImpl(
     override suspend fun updateUser(user: User): Result<Unit> {
         return try {
             val updatedUser = user.copy(updatedAt = Date())
-            val userEntity = UserEntity.Companion.fromDomain(updatedUser, synced = false)
+            val userEntity = UserEntity.fromDomain(updatedUser, synced = false)
             userDao.updateUser(userEntity)
             Result.Success(Unit)
         } catch (e: Exception) {
@@ -76,18 +83,37 @@ class UserRepositoryImpl(
     }
 
     override suspend fun fetchUserFromRemote(userId: String): Result<User> {
-        // TODO: Implementar cuando tengamos Firebase
-        return Result.Error("Firebase no configurado aún")
+        return try {
+            val userMap = firestoreService.getDocument(
+                collection = FirebaseConstants.COLLECTION_USERS,
+                documentId = userId,
+                clazz = Map::class.java
+            ) as? Map<String, Any?> ?: return Result.Error("Usuario no encontrado")
+
+            val user = UserMapper.fromFirebaseMap(userMap)
+
+            // Guardar en local
+            saveUser(user)
+
+            Result.Success(user)
+        } catch (e: Exception) {
+            Result.Error("Error al obtener usuario de Firebase: ${e.message}", e)
+        }
     }
 
     override suspend fun syncUser(user: User): Result<Unit> {
-        // TODO: Implementar cuando tengamos Firebase
         return try {
             // 1. Guardar en local
             saveUser(user)
 
             // 2. Subir a Firebase
-            // firebaseFirestore.collection("users").document(user.id).set(user)
+            val userMap = UserMapper.toFirebaseMap(user)
+            firestoreService.setDocument(
+                collection = FirebaseConstants.COLLECTION_USERS,
+                documentId = user.id,
+                data = userMap,
+                merge = true
+            )
 
             // 3. Marcar como sincronizado
             userDao.updateSyncStatus(user.id, synced = true)
@@ -99,12 +125,19 @@ class UserRepositoryImpl(
     }
 
     override suspend fun syncAllUsers(): Result<Unit> {
-        // TODO: Implementar cuando tengamos Firebase
         return try {
             val unsyncedUsers = userDao.getUnsyncedUsers()
             unsyncedUsers.forEach { entity ->
-                // Subir a Firebase
-                // firebaseFirestore.collection("users").document(entity.id).set(entity.toDomain())
+                val user = entity.toDomain()
+                val userMap = UserMapper.toFirebaseMap(user)
+
+                firestoreService.setDocument(
+                    collection = FirebaseConstants.COLLECTION_USERS,
+                    documentId = entity.id,
+                    data = userMap,
+                    merge = true
+                )
+
                 userDao.updateSyncStatus(entity.id, synced = true)
             }
             Result.Success(Unit)
@@ -115,7 +148,20 @@ class UserRepositoryImpl(
 
     override suspend fun updateLevelAndXP(userId: String, level: Int, xp: Int): Result<Unit> {
         return try {
+            // Actualizar local
             userDao.updateLevelAndXP(userId, level, xp)
+
+            // Actualizar Firebase
+            firestoreService.updateDocument(
+                collection = FirebaseConstants.COLLECTION_USERS,
+                documentId = userId,
+                updates = mapOf(
+                    "level" to level,
+                    "currentXP" to xp,
+                    "updatedAt" to com.google.firebase.Timestamp.now()
+                )
+            )
+
             Result.Success(Unit)
         } catch (e: Exception) {
             Result.Error("Error al actualizar nivel y XP: ${e.message}", e)
@@ -137,6 +183,8 @@ class UserRepositoryImpl(
                 )
 
                 updateUser(updatedUser)
+                updateLevelAndXP(userId, newLevel, newXP)
+
                 Result.Success(updatedUser)
             } else {
                 Result.Error("Usuario no encontrado")
@@ -153,15 +201,30 @@ class UserRepositoryImpl(
                 val user = userResult.data
                 val newPoints = user.totalPoints + points
                 val xpToAdd = PointsCalculator.pointsToXP(points)
+                val newXP = user.currentXP + xpToAdd
+                val newLevel = PointsCalculator.calculateLevel(newXP)
 
                 val updatedUser = user.copy(
                     totalPoints = newPoints,
-                    currentXP = user.currentXP + xpToAdd,
-                    level = PointsCalculator.calculateLevel(user.currentXP + xpToAdd),
+                    currentXP = newXP,
+                    level = newLevel,
                     updatedAt = Date()
                 )
 
                 updateUser(updatedUser)
+
+                // Actualizar Firebase
+                firestoreService.updateDocument(
+                    collection = FirebaseConstants.COLLECTION_USERS,
+                    documentId = userId,
+                    updates = mapOf(
+                        "totalPoints" to newPoints,
+                        "currentXP" to newXP,
+                        "level" to newLevel,
+                        "updatedAt" to com.google.firebase.Timestamp.now()
+                    )
+                )
+
                 Result.Success(updatedUser)
             } else {
                 Result.Error("Usuario no encontrado")
@@ -174,6 +237,16 @@ class UserRepositoryImpl(
     override suspend fun updatePoints(userId: String, points: Int): Result<Unit> {
         return try {
             userDao.updatePoints(userId, points)
+
+            firestoreService.updateDocument(
+                collection = FirebaseConstants.COLLECTION_USERS,
+                documentId = userId,
+                updates = mapOf(
+                    "totalPoints" to points,
+                    "updatedAt" to com.google.firebase.Timestamp.now()
+                )
+            )
+
             Result.Success(Unit)
         } catch (e: Exception) {
             Result.Error("Error al actualizar puntos: ${e.message}", e)
@@ -183,6 +256,16 @@ class UserRepositoryImpl(
     override suspend fun updateStreak(userId: String, streak: Int): Result<Unit> {
         return try {
             userDao.updateStreak(userId, streak)
+
+            firestoreService.updateDocument(
+                collection = FirebaseConstants.COLLECTION_USERS,
+                documentId = userId,
+                updates = mapOf(
+                    "currentStreak" to streak,
+                    "updatedAt" to com.google.firebase.Timestamp.now()
+                )
+            )
+
             Result.Success(Unit)
         } catch (e: Exception) {
             Result.Error("Error al actualizar racha: ${e.message}", e)
@@ -204,6 +287,17 @@ class UserRepositoryImpl(
                 )
 
                 updateUser(updatedUser)
+
+                firestoreService.updateDocument(
+                    collection = FirebaseConstants.COLLECTION_USERS,
+                    documentId = userId,
+                    updates = mapOf(
+                        "currentStreak" to newStreak,
+                        "longestStreak" to newLongestStreak,
+                        "updatedAt" to com.google.firebase.Timestamp.now()
+                    )
+                )
+
                 Result.Success(updatedUser)
             } else {
                 Result.Error("Usuario no encontrado")
@@ -218,13 +312,14 @@ class UserRepositoryImpl(
     }
 
     override suspend fun getCurrentUser(): Result<User> {
-        // TODO: Obtener el ID del usuario actual desde Firebase Auth
-        return Result.Error("Firebase Auth no configurado aún")
+        val userId = firebaseAuthService.getCurrentUserId()
+            ?: return Result.Error("Usuario no autenticado")
+        return getUserById(userId)
     }
 
     override fun getCurrentUserFlow(): Flow<User?> {
-        // TODO: Obtener el ID del usuario actual desde Firebase Auth
-        // return getUserByIdFlow(currentUserId)
-        throw NotImplementedError("Firebase Auth no configurado aún")
+        val userId = firebaseAuthService.getCurrentUserId()
+            ?: throw IllegalStateException("Usuario no autenticado")
+        return getUserByIdFlow(userId)
     }
 }

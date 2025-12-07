@@ -1,10 +1,12 @@
 package com.e243768.organipro_.data.repository
 
+import com.e243768.organipro_.core.constants.FirebaseConstants
 import com.e243768.organipro_.core.result.Result
 import com.e243768.organipro_.data.local.dao.TaskDao
 import com.e243768.organipro_.data.local.dao.UserStatsDao
 import com.e243768.organipro_.data.local.entities.UserStatsEntity
-import com.e243768.organipro_.domain.model.TaskStatus
+import com.e243768.organipro_.data.remote.firebase.FirebaseFirestoreService
+import com.e243768.organipro_.data.remote.mappers.UserStatsMapper
 import com.e243768.organipro_.domain.model.UserStats
 import com.e243768.organipro_.domain.repository.UserStatsRepository
 import kotlinx.coroutines.flow.Flow
@@ -12,21 +14,20 @@ import kotlinx.coroutines.flow.map
 
 class UserStatsRepositoryImpl(
     private val userStatsDao: UserStatsDao,
-    private val taskDao: TaskDao
+    private val taskDao: TaskDao,
+    private val firestoreService: FirebaseFirestoreService
 ) : UserStatsRepository {
 
     override suspend fun getUserStats(userId: String): Result<UserStats> {
         return try {
+            // Intentar obtener de local primero
             val entity = userStatsDao.getUserStats(userId)
             if (entity != null) {
-                Result.Success(entity.toDomain())
-            } else {
-                // Crear stats por defecto si no existen
-                val defaultStats = UserStats(userId = userId)
-                val statsEntity = UserStatsEntity.fromDomain(defaultStats)
-                userStatsDao.insertUserStats(statsEntity)
-                Result.Success(defaultStats)
+                return Result.Success(entity.toDomain())
             }
+
+            // Si no existe, obtener de Firebase
+            fetchStatsFromRemote(userId)
         } catch (e: Exception) {
             Result.Error("Error al obtener estadísticas: ${e.message}", e)
         }
@@ -38,8 +39,19 @@ class UserStatsRepositoryImpl(
 
     override suspend fun updateUserStats(stats: UserStats): Result<Unit> {
         return try {
+            // 1. Actualizar local
             val entity = UserStatsEntity.fromDomain(stats)
             userStatsDao.updateUserStats(entity)
+
+            // 2. Actualizar Firebase
+            val statsMap = UserStatsMapper.toFirebaseMap(stats)
+            firestoreService.setDocument(
+                collection = FirebaseConstants.COLLECTION_USER_STATS,
+                documentId = stats.userId,
+                data = statsMap,
+                merge = true
+            )
+
             Result.Success(Unit)
         } catch (e: Exception) {
             Result.Error("Error al actualizar estadísticas: ${e.message}", e)
@@ -68,7 +80,16 @@ class UserStatsRepositoryImpl(
 
     override suspend fun updateTasksCompletedToday(userId: String, count: Int): Result<Unit> {
         return try {
+            // 1. Actualizar local
             userStatsDao.updateTasksCompletedToday(userId, count)
+
+            // 2. Actualizar Firebase
+            firestoreService.updateDocument(
+                collection = FirebaseConstants.COLLECTION_USER_STATS,
+                documentId = userId,
+                updates = mapOf("tasksCompletedToday" to count)
+            )
+
             Result.Success(Unit)
         } catch (e: Exception) {
             Result.Error("Error al actualizar tareas de hoy: ${e.message}", e)
@@ -77,7 +98,16 @@ class UserStatsRepositoryImpl(
 
     override suspend fun updateStreak(userId: String, streak: Int): Result<Unit> {
         return try {
+            // 1. Actualizar local
             userStatsDao.updateStreak(userId, streak)
+
+            // 2. Actualizar Firebase
+            firestoreService.updateDocument(
+                collection = FirebaseConstants.COLLECTION_USER_STATS,
+                documentId = userId,
+                updates = mapOf("currentStreak" to streak)
+            )
+
             Result.Success(Unit)
         } catch (e: Exception) {
             Result.Error("Error al actualizar racha: ${e.message}", e)
@@ -107,12 +137,10 @@ class UserStatsRepositoryImpl(
         return try {
             val completedCount = taskDao.getCompletedTasksCount(userId)
 
-            // Aquí calcularíamos todas las estadísticas desde cero
             val statsResult = getUserStats(userId)
             if (statsResult is Result.Success) {
                 val stats = statsResult.data.copy(
                     tasksCompleted = completedCount
-                    // ... otros campos recalculados
                 )
                 updateUserStats(stats)
                 Result.Success(stats)
@@ -129,9 +157,8 @@ class UserStatsRepositoryImpl(
             val statsResult = getUserStats(userId)
             if (statsResult is Result.Success) {
                 val stats = statsResult.data
-                // Recalcular estadísticas de la semana
                 val updatedStats = stats.copy(
-                    weeklyPoints = 0, // Reset semanal
+                    weeklyPoints = 0,
                     tasksCompletedThisWeek = 0
                 )
                 updateUserStats(updatedStats)
@@ -149,7 +176,7 @@ class UserStatsRepositoryImpl(
             if (statsResult is Result.Success) {
                 val stats = statsResult.data
                 val updatedStats = stats.copy(
-                    monthlyPoints = 0, // Reset mensual
+                    monthlyPoints = 0,
                     tasksCompletedThisMonth = 0
                 )
                 updateUserStats(updatedStats)
@@ -162,20 +189,61 @@ class UserStatsRepositoryImpl(
     }
 
     override suspend fun resetDailyStats(userId: String): Result<Unit> {
-        return try {
-            updateTasksCompletedToday(userId, 0)
-        } catch (e: Exception) {
-            Result.Error("Error al resetear stats diarias: ${e.message}", e)
-        }
+        return updateTasksCompletedToday(userId, 0)
     }
 
     override suspend fun fetchStatsFromRemote(userId: String): Result<UserStats> {
-        // TODO: Implementar cuando tengamos Firebase
-        return Result.Error("Firebase no configurado aún")
+        return try {
+            val statsMap = firestoreService.getDocument(
+                collection = FirebaseConstants.COLLECTION_USER_STATS,
+                documentId = userId,
+                clazz = Map::class.java
+            ) as? Map<String, Any?>
+
+            if (statsMap != null) {
+                val stats = UserStatsMapper.fromFirebaseMap(statsMap)
+
+                // Guardar en local
+                val entity = UserStatsEntity.fromDomain(stats)
+                userStatsDao.insertUserStats(entity)
+
+                Result.Success(stats)
+            } else {
+                // Crear stats por defecto
+                val defaultStats = UserStats(userId = userId)
+                val entity = UserStatsEntity.fromDomain(defaultStats)
+                userStatsDao.insertUserStats(entity)
+
+                // Guardar en Firebase
+                val statsMap = UserStatsMapper.toFirebaseMap(defaultStats)
+                firestoreService.setDocument(
+                    collection = FirebaseConstants.COLLECTION_USER_STATS,
+                    documentId = userId,
+                    data = statsMap
+                )
+
+                Result.Success(defaultStats)
+            }
+        } catch (e: Exception) {
+            Result.Error("Error al obtener estadísticas de Firebase: ${e.message}", e)
+        }
     }
 
     override suspend fun syncStats(userId: String): Result<Unit> {
-        // TODO: Implementar cuando tengamos Firebase
-        return Result.Error("Firebase no configurado aún")
+        return try {
+            val statsResult = getUserStats(userId)
+            if (statsResult is Result.Success) {
+                val statsMap = UserStatsMapper.toFirebaseMap(statsResult.data)
+                firestoreService.setDocument(
+                    collection = FirebaseConstants.COLLECTION_USER_STATS,
+                    documentId = userId,
+                    data = statsMap,
+                    merge = true
+                )
+            }
+            Result.Success(Unit)
+        } catch (e: Exception) {
+            Result.Error("Error al sincronizar estadísticas: ${e.message}", e)
+        }
     }
 }
