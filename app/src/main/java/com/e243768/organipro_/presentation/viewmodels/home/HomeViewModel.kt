@@ -24,7 +24,7 @@ class HomeViewModel : ViewModel() {
         loadTasks()
     }
 
-    fun onEvent(event: HomeUiEvent) {
+    fun onEvent(event: HomeUiEvent) {  // ← Cambiar de "UiEvent" a "HomeUiEvent"
         when (event) {
             is HomeUiEvent.TaskClicked -> handleTaskClick(event.task)
             is HomeUiEvent.SettingsClicked -> handleSettingsClick()

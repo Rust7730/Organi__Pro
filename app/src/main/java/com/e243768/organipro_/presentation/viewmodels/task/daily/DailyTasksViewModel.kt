@@ -24,7 +24,7 @@ class DailyTasksViewModel : ViewModel() {
         loadDailyTasks()
     }
 
-    fun onEvent(event: DailyTasksUiEvent) {
+    fun onEvent(event: DailyTasksUiEvent.TabSelected) {
         when (event) {
             is DailyTasksUiEvent.TabSelected -> handleTabSelection(event.tab)
             is DailyTasksUiEvent.TaskClicked -> handleTaskClick(event.task)
@@ -33,7 +33,22 @@ class DailyTasksViewModel : ViewModel() {
             is DailyTasksUiEvent.RefreshTasks -> loadDailyTasks()
         }
     }
+    fun onEvent(event: DailyTasksUiEvent) {
+        when (event) {
+            is DailyTasksUiEvent.TabSelected -> handleTabSelection(event.tab)
+            is DailyTasksUiEvent.TaskClicked -> handleTaskClick(event.task)
+            is DailyTasksUiEvent.TimeSlotClicked -> handleTimeSlotClick(event.time)
+            is DailyTasksUiEvent.BackClicked -> handleBackClick()
+            is DailyTasksUiEvent.RefreshTasks -> loadDailyTasks()
 
+
+            is DailyTasksUiEvent.NavigationItemClicked -> {
+
+                println("Navegar a: ${event.route}")
+
+            }
+        }
+    }
     private fun loadDailyTasks() {
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true) }

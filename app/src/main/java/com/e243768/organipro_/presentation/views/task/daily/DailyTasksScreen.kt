@@ -1,7 +1,10 @@
+// presentation/views/tasks/daily/DailyTasksScreen.kt
 package com.e243768.organipro_.presentation.views.tasks.daily
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
@@ -14,6 +17,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
+import com.e243768.organipro_.presentation.components.SharedBottomNavigation
 import com.e243768.organipro_.presentation.navigation.Routes
 import com.e243768.organipro_.presentation.viewmodels.tasks.daily.DailyTasksUiEvent
 import com.e243768.organipro_.presentation.viewmodels.tasks.daily.DailyTasksViewModel
@@ -59,7 +63,6 @@ fun DailyTasksScreen(
 
         Scaffold(
             containerColor = Color.Transparent,
-
             topBar = {
                 TopAppBar(
                     title = {
@@ -77,7 +80,6 @@ fun DailyTasksScreen(
                             )
                         }
                     },
-
                     navigationIcon = {
                         IconButton(
                             onClick = {
@@ -94,6 +96,12 @@ fun DailyTasksScreen(
                     colors = TopAppBarDefaults.topAppBarColors(
                         containerColor = Color.Transparent
                     )
+                )
+            },
+            bottomBar = {
+                SharedBottomNavigation(
+                    navController = navController,
+                    currentRoute = Routes.DailyTasks
                 )
             }
         ) { paddingValues ->
@@ -121,24 +129,35 @@ fun DailyTasksScreen(
                         CircularProgressIndicator(color = Color.White)
                     }
                 } else {
-                    // Lista de time slots
-                    LazyColumn(
-                        modifier = Modifier.fillMaxSize(),
-                        verticalArrangement = Arrangement.spacedBy(0.dp)
-                    ) {
-                        items(uiState.timeSlots.size) { index ->
-                            val timeSlot = uiState.timeSlots[index]
-                            TimeSlot(
-                                timeSlotData = timeSlot,
-                                onTaskClick = {
-                                    timeSlot.task?.let { task ->
-                                        viewModel.onEvent(DailyTasksUiEvent.TaskClicked(task))
-                                    }
-                                },
-                                onSlotClick = {
-                                    viewModel.onEvent(DailyTasksUiEvent.TimeSlotClicked(timeSlot.time))
-                                }
+                    // Contenedor con fondo semi-gris
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(
+                                color = Color(0xFF2A214D).copy(alpha = 0.5f),
+                                shape = RoundedCornerShape(20.dp)
                             )
+                            .padding(16.dp)
+                    ) {
+                        // Lista de time slots
+                        LazyColumn(
+                            modifier = Modifier.fillMaxSize(),
+                            verticalArrangement = Arrangement.spacedBy(0.dp)
+                        ) {
+                            items(uiState.timeSlots.size) { index ->
+                                val timeSlot = uiState.timeSlots[index]
+                                TimeSlot(
+                                    timeSlotData = timeSlot,
+                                    onTaskClick = {
+                                        timeSlot.task?.let { task ->
+                                            viewModel.onEvent(DailyTasksUiEvent.TaskClicked(task))
+                                        }
+                                    },
+                                    onSlotClick = {
+                                        viewModel.onEvent(DailyTasksUiEvent.TimeSlotClicked(timeSlot.time))
+                                    }
+                                )
+                            }
                         }
                     }
                 }
