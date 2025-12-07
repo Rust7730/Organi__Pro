@@ -14,7 +14,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.e243768.organipro_.presentation.components.SharedBottomNavigation
 import com.e243768.organipro_.presentation.navigation.Routes
-import com.e243768.organipro_.presentation.viewmodels.home.UiEvent
+import com.e243768.organipro_.presentation.viewmodels.home.HomeUiEvent  // ← Importar correctamente
 import com.e243768.organipro_.presentation.viewmodels.home.HomeViewModel
 import com.e243768.organipro_.presentation.views.home.components.HomeHeader
 import com.e243768.organipro_.presentation.views.home.components.TaskCard
@@ -53,7 +53,7 @@ fun HomeScreen(
                     streak = uiState.streak,
                     avatarResId = uiState.avatarResId,
                     onSettingsClick = {
-                        viewModel.onEvent(HomeUi.SettingsClicked)
+                        viewModel.onEvent(HomeUiEvent.SettingsClicked)  // ✅ Correcto
                     }
                 )
             },
@@ -96,7 +96,7 @@ fun HomeScreen(
                         TaskCard(
                             task = task,
                             onClick = {
-                                viewModel.onEvent(HomeUiEvent.TaskClicked(task))
+                                viewModel.onEvent(HomeUiEvent.TaskClicked(task))  // ✅ Correcto
                             },
                             modifier = Modifier.padding(bottom = 12.dp)
                         )
@@ -118,7 +118,7 @@ fun HomeScreen(
                         TaskCard(
                             task = task,
                             onClick = {
-                                viewModel.onEvent(HomeUiEvent.TaskClicked(task))
+                                viewModel.onEvent(HomeUiEvent.TaskClicked(task))  // ✅ Correcto
                             },
                             modifier = Modifier.padding(bottom = 12.dp)
                         )
