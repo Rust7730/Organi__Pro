@@ -27,7 +27,7 @@ fun HomeHeader(
     streak: Int,
     avatarResId: Int,
     onSettingsClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier.statusBarsPadding()
 ) {
     Row(
         modifier = modifier

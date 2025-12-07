@@ -1,4 +1,4 @@
-package com.e243768.organipro_.presentation.views.home.components
+package com.e243768.organipro_.presentation.components
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -13,9 +13,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import com.e243768.organipro_.presentation.views.home.components.BottomNavItem
 
 @Composable
-fun HomeBottomNavigation(
+fun BottomNavigation(
     onNavItemClick: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
