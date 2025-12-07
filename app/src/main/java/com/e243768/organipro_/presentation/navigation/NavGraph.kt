@@ -8,8 +8,13 @@ import com.e243768.organipro_.presentation.views.auth.login.LoginScreen
 import com.e243768.organipro_.presentation.views.auth.signup.SignUpScreen
 import com.e243768.organipro_.presentation.views.home.HomeScreen
 import com.e243768.organipro_.presentation.views.intro.IntroScreen
+import com.e243768.organipro_.presentation.views.leaderboard.LeaderboardScreen
+import com.e243768.organipro_.presentation.views.profile.ProfileScreen
+import com.e243768.organipro_.presentation.views.settings.SettingsScreen
 import com.e243768.organipro_.presentation.views.splash.LoadingScreen
 import com.e243768.organipro_.presentation.views.tasks.daily.DailyTasksScreen
+import com.e243768.organipro_.presentation.views.tasks.detail.TaskDetailScreen
+import com.e243768.organipro_.presentation.views.tasks.monthly.MonthlyTasksScreen
 import com.e243768.organipro_.presentation.views.tasks.weekly.WeeklyTasksScreen
 
 @Composable
@@ -42,16 +47,19 @@ fun AppNavGraph(
             HomeScreen(navController = navController)
         }
 
-        // Leaderboard (placeholder por ahora)
         composable(Routes.Leaderboard) {
+            LeaderboardScreen(navController)
+
         }
 
-        // Profile (placeholder por ahora)
         composable(Routes.Profile) {
+            ProfileScreen(navController)
+
         }
 
-        // Settings (placeholder por ahora)
         composable(Routes.Settings) {
+            SettingsScreen(navController)
+
         }
 
         composable(Routes.DailyTasks) {
@@ -63,13 +71,13 @@ fun AppNavGraph(
 
         }
 
-        // Monthly Tasks (placeholder por ahora)
         composable(Routes.MonthlyTasks) {
+            MonthlyTasksScreen(navController)
+
         }
 
-        // Task Detail con parámetro (placeholder por ahora)
         composable(Routes.TaskDetail) {
-            // val taskId = it.arguments?.getString("taskId") ?: ""
-        }
+                backStackEntry ->
+            TaskDetailScreen(navController)        }
     }
 }
