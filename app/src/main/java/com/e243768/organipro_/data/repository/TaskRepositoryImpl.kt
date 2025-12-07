@@ -1,10 +1,13 @@
 package com.e243768.organipro_.data.repository
 
+import com.e243768.organipro_.core.constants.FirebaseConstants
 import com.e243768.organipro_.core.result.Result
 import com.e243768.organipro_.core.util.DateUtils
 import com.e243768.organipro_.data.local.dao.AttachmentDao
 import com.e243768.organipro_.data.local.dao.TaskDao
 import com.e243768.organipro_.data.local.entities.TaskEntity
+import com.e243768.organipro_.data.remote.firebase.FirebaseFirestoreService
+import com.e243768.organipro_.data.remote.mappers.TaskMapper
 import com.e243768.organipro_.domain.model.*
 import com.e243768.organipro_.domain.repository.TaskRepository
 import kotlinx.coroutines.flow.Flow
@@ -13,20 +16,33 @@ import java.util.Date
 
 class TaskRepositoryImpl(
     private val taskDao: TaskDao,
-    private val attachmentDao: AttachmentDao
-    // private val firebaseFirestore: FirebaseFirestore // TODO: Agregar cuando tengamos Firebase
+    private val attachmentDao: AttachmentDao,
+    private val firestoreService: FirebaseFirestoreService
 ) : TaskRepository {
 
     override suspend fun getTaskById(taskId: String): Result<Task> {
         return try {
+            // Intentar obtener de local primero
             val taskEntity = taskDao.getTaskById(taskId)
             if (taskEntity != null) {
                 val attachments = attachmentDao.getAttachmentsByTaskId(taskId).map { it.toDomain() }
                 val task = taskEntity.toDomain().copy(attachments = attachments)
-                Result.Success(task)
-            } else {
-                Result.Error("Tarea no encontrada")
+                return Result.Success(task)
             }
+
+            // Si no está en local, obtener de Firebase
+            val taskMap = firestoreService.getDocument(
+                collection = FirebaseConstants.COLLECTION_TASKS,
+                documentId = taskId,
+                clazz = Map::class.java
+            ) as? Map<String, Any?> ?: return Result.Error("Tarea no encontrada")
+
+            val task = TaskMapper.fromFirebaseMap(taskMap)
+
+            // Guardar en local
+            createTask(task)
+
+            Result.Success(task)
         } catch (e: Exception) {
             Result.Error("Error al obtener tarea: ${e.message}", e)
         }
@@ -52,13 +68,20 @@ class TaskRepositoryImpl(
 
     override suspend fun createTask(task: Task): Result<Task> {
         return try {
+            // 1. Guardar en local
             val taskEntity = TaskEntity.fromDomain(task, synced = false)
             taskDao.insertTask(taskEntity)
 
-            // Guardar attachments si los hay
-            if (task.attachments.isNotEmpty()) {
-                // Se guardarían a través del AttachmentRepository
-            }
+            // 2. Subir a Firebase
+            val taskMap = TaskMapper.toFirebaseMap(task)
+            firestoreService.setDocument(
+                collection = FirebaseConstants.COLLECTION_TASKS,
+                documentId = task.id,
+                data = taskMap
+            )
+
+            // 3. Marcar como sincronizado
+            taskDao.updateSyncStatus(task.id, synced = true)
 
             Result.Success(task)
         } catch (e: Exception) {
@@ -69,8 +92,23 @@ class TaskRepositoryImpl(
     override suspend fun updateTask(task: Task): Result<Unit> {
         return try {
             val updatedTask = task.copy(updatedAt = Date())
+
+            // 1. Actualizar local
             val taskEntity = TaskEntity.fromDomain(updatedTask, synced = false)
             taskDao.updateTask(taskEntity)
+
+            // 2. Actualizar Firebase
+            val taskMap = TaskMapper.toFirebaseMap(updatedTask)
+            firestoreService.setDocument(
+                collection = FirebaseConstants.COLLECTION_TASKS,
+                documentId = task.id,
+                data = taskMap,
+                merge = true
+            )
+
+            // 3. Marcar como sincronizado
+            taskDao.updateSyncStatus(task.id, synced = true)
+
             Result.Success(Unit)
         } catch (e: Exception) {
             Result.Error("Error al actualizar tarea: ${e.message}", e)
@@ -79,7 +117,15 @@ class TaskRepositoryImpl(
 
     override suspend fun deleteTask(taskId: String): Result<Unit> {
         return try {
+            // 1. Eliminar de local
             taskDao.deleteTaskById(taskId)
+
+            // 2. Eliminar de Firebase
+            firestoreService.deleteDocument(
+                collection = FirebaseConstants.COLLECTION_TASKS,
+                documentId = taskId
+            )
+
             Result.Success(Unit)
         } catch (e: Exception) {
             Result.Error("Error al eliminar tarea: ${e.message}", e)
@@ -142,7 +188,21 @@ class TaskRepositoryImpl(
     override suspend fun markTaskAsCompleted(taskId: String): Result<Unit> {
         return try {
             val completedAt = Date()
+
+            // 1. Actualizar local
             taskDao.markTaskAsCompleted(taskId, TaskStatus.COMPLETED, completedAt)
+
+            // 2. Actualizar Firebase
+            firestoreService.updateDocument(
+                collection = FirebaseConstants.COLLECTION_TASKS,
+                documentId = taskId,
+                updates = mapOf(
+                    "status" to TaskStatus.COMPLETED.name,
+                    "completedAt" to com.google.firebase.Timestamp(completedAt),
+                    "updatedAt" to com.google.firebase.Timestamp.now()
+                )
+            )
+
             Result.Success(Unit)
         } catch (e: Exception) {
             Result.Error("Error al completar tarea: ${e.message}", e)
@@ -165,7 +225,19 @@ class TaskRepositoryImpl(
 
     override suspend fun updateTaskProgress(taskId: String, progress: Float): Result<Unit> {
         return try {
+            // 1. Actualizar local
             taskDao.updateTaskProgress(taskId, progress)
+
+            // 2. Actualizar Firebase
+            firestoreService.updateDocument(
+                collection = FirebaseConstants.COLLECTION_TASKS,
+                documentId = taskId,
+                updates = mapOf(
+                    "progress" to progress,
+                    "updatedAt" to com.google.firebase.Timestamp.now()
+                )
+            )
+
             Result.Success(Unit)
         } catch (e: Exception) {
             Result.Error("Error al actualizar progreso: ${e.message}", e)
@@ -173,12 +245,27 @@ class TaskRepositoryImpl(
     }
 
     override suspend fun fetchTasksFromRemote(userId: String): Result<List<Task>> {
-        // TODO: Implementar cuando tengamos Firebase
-        return Result.Error("Firebase no configurado aún")
+        return try {
+            val taskMaps = firestoreService.getDocuments(
+                collection = FirebaseConstants.COLLECTION_TASKS,
+                clazz = Map::class.java
+            ) { query ->
+                query.whereEqualTo("userId", userId)
+            } as List<Map<String, Any?>>
+
+            val tasks = taskMaps.map { TaskMapper.fromFirebaseMap(it) }
+
+            // Guardar en local
+            val taskEntities = tasks.map { TaskEntity.fromDomain(it, synced = true) }
+            taskDao.insertTasks(taskEntities)
+
+            Result.Success(tasks)
+        } catch (e: Exception) {
+            Result.Error("Error al obtener tareas de Firebase: ${e.message}", e)
+        }
     }
 
     override suspend fun syncTask(task: Task): Result<Unit> {
-        // TODO: Implementar cuando tengamos Firebase
         return try {
             createTask(task)
             taskDao.updateSyncStatus(task.id, synced = true)
@@ -189,13 +276,23 @@ class TaskRepositoryImpl(
     }
 
     override suspend fun syncAllTasks(userId: String): Result<Unit> {
-        // TODO: Implementar cuando tengamos Firebase
         return try {
             val unsyncedTasks = taskDao.getUnsyncedTasks()
+
             unsyncedTasks.forEach { entity ->
-                // Subir a Firebase
+                val task = entity.toDomain()
+                val taskMap = TaskMapper.toFirebaseMap(task)
+
+                firestoreService.setDocument(
+                    collection = FirebaseConstants.COLLECTION_TASKS,
+                    documentId = entity.id,
+                    data = taskMap,
+                    merge = true
+                )
+
                 taskDao.updateSyncStatus(entity.id, synced = true)
             }
+
             Result.Success(Unit)
         } catch (e: Exception) {
             Result.Error("Error al sincronizar tareas: ${e.message}", e)
@@ -216,7 +313,6 @@ class TaskRepositoryImpl(
             val startOfDay = DateUtils.getStartOfDay(Date())
             val endOfDay = DateUtils.getEndOfDay(Date())
             // Esta query necesitaría agregarse al DAO
-            // Por ahora devolvemos 0
             Result.Success(0)
         } catch (e: Exception) {
             Result.Error("Error al obtener tareas creadas hoy: ${e.message}", e)

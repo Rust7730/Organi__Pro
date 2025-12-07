@@ -1,28 +1,50 @@
 package com.e243768.organipro_.data.repository
 
+import com.e243768.organipro_.core.constants.FirebaseConstants
 import com.e243768.organipro_.core.result.Result
+import com.e243768.organipro_.data.remote.firebase.FirebaseAuthService
+import com.e243768.organipro_.data.remote.firebase.FirebaseFirestoreService
+import com.e243768.organipro_.data.remote.mappers.UserMapper
 import com.e243768.organipro_.domain.model.User
 import com.e243768.organipro_.domain.repository.AuthRepository
 import com.e243768.organipro_.domain.repository.UserRepository
 import java.util.Date
-import java.util.UUID
 
 class AuthRepositoryImpl(
+    private val firebaseAuthService: FirebaseAuthService,
+    private val firestoreService: FirebaseFirestoreService,
     private val userRepository: UserRepository
-    // private val firebaseAuth: FirebaseAuth // TODO: Agregar cuando tengamos Firebase
 ) : AuthRepository {
 
     override suspend fun signIn(email: String, password: String): Result<User> {
-        // TODO: Implementar cuando tengamos Firebase Auth
         return try {
             // 1. Autenticar con Firebase
-            // val authResult = firebaseAuth.signInWithEmailAndPassword(email, password).await()
-            // val userId = authResult.user?.uid ?: return Result.Error("Usuario no encontrado")
+            val firebaseUser = firebaseAuthService.signIn(email, password)
+                ?: return Result.Error("Error al iniciar sesión")
 
-            // 2. Obtener datos del usuario
-            // userRepository.fetchUserFromRemote(userId)
+            val userId = firebaseUser.uid
 
-            Result.Error("Firebase Auth no configurado aún")
+            // 2. Obtener datos del usuario desde Firestore
+            val userMap = firestoreService.getDocument(
+                collection = FirebaseConstants.COLLECTION_USERS,
+                documentId = userId,
+                clazz = Map::class.java
+            ) as? Map<String, Any?> ?: return Result.Error("Usuario no encontrado")
+
+            val user = UserMapper.fromFirebaseMap(userMap)
+
+            // 3. Actualizar lastLoginAt
+            val updatedUser = user.copy(lastLoginAt = Date())
+            firestoreService.updateDocument(
+                collection = FirebaseConstants.COLLECTION_USERS,
+                documentId = userId,
+                updates = mapOf("lastLoginAt" to com.google.firebase.Timestamp.now())
+            )
+
+            // 4. Guardar en base de datos local
+            userRepository.saveUser(updatedUser)
+
+            Result.Success(updatedUser)
         } catch (e: Exception) {
             Result.Error("Error al iniciar sesión: ${e.message}", e)
         }
@@ -34,14 +56,14 @@ class AuthRepositoryImpl(
         email: String,
         password: String
     ): Result<User> {
-        // TODO: Implementar cuando tengamos Firebase Auth
         return try {
             // 1. Crear usuario en Firebase Auth
-            // val authResult = firebaseAuth.createUserWithEmailAndPassword(email, password).await()
-            // val userId = authResult.user?.uid ?: return Result.Error("Error al crear usuario")
+            val firebaseUser = firebaseAuthService.signUp(email, password)
+                ?: return Result.Error("Error al crear usuario")
+
+            val userId = firebaseUser.uid
 
             // 2. Crear perfil de usuario
-            val userId = UUID.randomUUID().toString()
             val newUser = User(
                 id = userId,
                 name = name,
@@ -60,8 +82,19 @@ class AuthRepositoryImpl(
                 isActive = true
             )
 
-            // 3. Guardar en Firestore y local
+            // 3. Guardar en Firestore
+            val userMap = UserMapper.toFirebaseMap(newUser)
+            firestoreService.setDocument(
+                collection = FirebaseConstants.COLLECTION_USERS,
+                documentId = userId,
+                data = userMap
+            )
+
+            // 4. Guardar en base de datos local
             userRepository.saveUser(newUser)
+
+            // 5. Actualizar nombre en Firebase Auth
+            firebaseAuthService.updateUserProfile(displayName = name, photoUrl = null)
 
             Result.Success(newUser)
         } catch (e: Exception) {
@@ -71,7 +104,7 @@ class AuthRepositoryImpl(
 
     override suspend fun signOut(): Result<Unit> {
         return try {
-            // firebaseAuth.signOut()
+            firebaseAuthService.signOut()
             Result.Success(Unit)
         } catch (e: Exception) {
             Result.Error("Error al cerrar sesión: ${e.message}", e)
@@ -80,7 +113,7 @@ class AuthRepositoryImpl(
 
     override suspend fun resetPassword(email: String): Result<Unit> {
         return try {
-            // firebaseAuth.sendPasswordResetEmail(email).await()
+            firebaseAuthService.sendPasswordResetEmail(email)
             Result.Success(Unit)
         } catch (e: Exception) {
             Result.Error("Error al enviar email: ${e.message}", e)
@@ -88,18 +121,16 @@ class AuthRepositoryImpl(
     }
 
     override suspend fun getCurrentUserId(): String? {
-        // return firebaseAuth.currentUser?.uid
-        return null
+        return firebaseAuthService.getCurrentUserId()
     }
 
     override suspend fun isUserLoggedIn(): Boolean {
-        // return firebaseAuth.currentUser != null
-        return false
+        return firebaseAuthService.isUserLoggedIn()
     }
 
     override suspend fun refreshSession(): Result<Unit> {
         return try {
-            // firebaseAuth.currentUser?.reload()?.await()
+            firebaseAuthService.refreshToken()
             Result.Success(Unit)
         } catch (e: Exception) {
             Result.Error("Error al refrescar sesión: ${e.message}", e)
@@ -109,8 +140,23 @@ class AuthRepositoryImpl(
     override suspend fun updateProfile(name: String, alias: String): Result<Unit> {
         return try {
             val userId = getCurrentUserId() ?: return Result.Error("Usuario no autenticado")
-            val userResult = userRepository.getUserById(userId)
 
+            // 1. Actualizar en Firestore
+            firestoreService.updateDocument(
+                collection = FirebaseConstants.COLLECTION_USERS,
+                documentId = userId,
+                updates = mapOf(
+                    "name" to name,
+                    "alias" to alias,
+                    "updatedAt" to com.google.firebase.Timestamp.now()
+                )
+            )
+
+            // 2. Actualizar en Firebase Auth
+            firebaseAuthService.updateUserProfile(displayName = name, photoUrl = null)
+
+            // 3. Actualizar en base de datos local
+            val userResult = userRepository.getUserById(userId)
             if (userResult is Result.Success) {
                 val updatedUser = userResult.data.copy(
                     name = name,
@@ -118,37 +164,99 @@ class AuthRepositoryImpl(
                     updatedAt = Date()
                 )
                 userRepository.updateUser(updatedUser)
-            } else {
-                Result.Error("Usuario no encontrado")
             }
+
+            Result.Success(Unit)
         } catch (e: Exception) {
             Result.Error("Error al actualizar perfil: ${e.message}", e)
         }
     }
 
     override suspend fun updateEmail(newEmail: String, password: String): Result<Unit> {
-        // TODO: Implementar cuando tengamos Firebase Auth
-        return Result.Error("Firebase Auth no configurado aún")
+        return try {
+            val userId = getCurrentUserId() ?: return Result.Error("Usuario no autenticado")
+            val currentUser = firebaseAuthService.getCurrentUser()
+                ?: return Result.Error("Usuario no autenticado")
+
+            // 1. Reautenticar
+            firebaseAuthService.reauthenticate(currentUser.email ?: "", password)
+
+            // 2. Actualizar email en Firebase Auth
+            firebaseAuthService.updateEmail(newEmail)
+
+            // 3. Actualizar en Firestore
+            firestoreService.updateDocument(
+                collection = FirebaseConstants.COLLECTION_USERS,
+                documentId = userId,
+                updates = mapOf(
+                    "email" to newEmail,
+                    "updatedAt" to com.google.firebase.Timestamp.now()
+                )
+            )
+
+            // 4. Actualizar en base de datos local
+            val userResult = userRepository.getUserById(userId)
+            if (userResult is Result.Success) {
+                val updatedUser = userResult.data.copy(
+                    email = newEmail,
+                    updatedAt = Date()
+                )
+                userRepository.updateUser(updatedUser)
+            }
+
+            Result.Success(Unit)
+        } catch (e: Exception) {
+            Result.Error("Error al actualizar email: ${e.message}", e)
+        }
     }
 
     override suspend fun updatePassword(
         currentPassword: String,
         newPassword: String
     ): Result<Unit> {
-        // TODO: Implementar cuando tengamos Firebase Auth
-        return Result.Error("Firebase Auth no configurado aún")
+        return try {
+            val currentUser = firebaseAuthService.getCurrentUser()
+                ?: return Result.Error("Usuario no autenticado")
+
+            // 1. Reautenticar
+            firebaseAuthService.reauthenticate(currentUser.email ?: "", currentPassword)
+
+            // 2. Actualizar contraseña
+            firebaseAuthService.updatePassword(newPassword)
+
+            Result.Success(Unit)
+        } catch (e: Exception) {
+            Result.Error("Error al actualizar contraseña: ${e.message}", e)
+        }
     }
 
     override suspend fun deleteAccount(password: String): Result<Unit> {
-        // TODO: Implementar cuando tengamos Firebase Auth
         return try {
             val userId = getCurrentUserId() ?: return Result.Error("Usuario no autenticado")
+            val currentUser = firebaseAuthService.getCurrentUser()
+                ?: return Result.Error("Usuario no autenticado")
 
-            // 1. Eliminar cuenta de Firebase Auth
-            // firebaseAuth.currentUser?.delete()?.await()
+            // 1. Reautenticar
+            firebaseAuthService.reauthenticate(currentUser.email ?: "", password)
 
-            // 2. Eliminar datos del usuario
+            // 2. Eliminar datos del usuario en Firestore
+            firestoreService.deleteDocument(
+                collection = FirebaseConstants.COLLECTION_USERS,
+                documentId = userId
+            )
+
+            // 3. Eliminar tareas del usuario
+            firestoreService.deleteDocuments(
+                collection = FirebaseConstants.COLLECTION_TASKS
+            ) { query ->
+                query.whereEqualTo("userId", userId)
+            }
+
+            // 4. Eliminar de base de datos local
             userRepository.deleteUser(userId)
+
+            // 5. Eliminar cuenta de Firebase Auth
+            firebaseAuthService.deleteAccount()
 
             Result.Success(Unit)
         } catch (e: Exception) {
