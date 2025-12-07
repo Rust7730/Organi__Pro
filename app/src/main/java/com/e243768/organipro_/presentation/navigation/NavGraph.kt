@@ -10,6 +10,7 @@ import com.e243768.organipro_.presentation.views.home.HomeScreen
 import com.e243768.organipro_.presentation.views.intro.IntroScreen
 import com.e243768.organipro_.presentation.views.splash.LoadingScreen
 import com.e243768.organipro_.presentation.views.tasks.daily.DailyTasksScreen
+import com.e243768.organipro_.presentation.views.tasks.detail.TaskDetailScreen
 import com.e243768.organipro_.presentation.views.tasks.monthly.MonthlyTasksScreen
 import com.e243768.organipro_.presentation.views.tasks.weekly.WeeklyTasksScreen
 
@@ -69,9 +70,8 @@ fun AppNavGraph(
 
         }
 
-        // Task Detail con parámetro (placeholder por ahora)
         composable(Routes.TaskDetail) {
-            // val taskId = it.arguments?.getString("taskId") ?: ""
-        }
+                backStackEntry ->
+            TaskDetailScreen(navController)        }
     }
 }
