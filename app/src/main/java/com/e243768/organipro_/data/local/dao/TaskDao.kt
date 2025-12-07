@@ -28,7 +28,7 @@ interface TaskDao {
     @Query("SELECT * FROM tasks WHERE user_id = :userId AND due_date >= :startDate AND due_date <= :endDate ORDER BY due_date ASC")
     fun getTasksByDateRange(userId: String, startDate: Date, endDate: Date): Flow<List<TaskEntity>>
 
-    @Query("SELECT * FROM tasks WHERE user_id = :userId AND status = 'COMPLETED' ORDER BY completed_at DESC")
+    @Query("SELECT * FROM tasks WHERE user_id = :userId AND status = 'COMPLETED' ORDER BY completed DESC")
     fun getCompletedTasks(userId: String): Flow<List<TaskEntity>>
 
     @Query("SELECT * FROM tasks WHERE user_id = :userId AND status != 'COMPLETED' AND due_date < :currentDate ORDER BY due_date ASC")
@@ -49,9 +49,8 @@ interface TaskDao {
     @Query("DELETE FROM tasks WHERE id = :taskId")
     suspend fun deleteTaskById(taskId: String)
 
-    @Query("UPDATE tasks SET status = :status, completed_at = :completedAt WHERE id = :taskId")
+    @Query("UPDATE tasks SET status = :status, completed = :completedAt WHERE id = :taskId")
     suspend fun markTaskAsCompleted(taskId: String, status: TaskStatus, completedAt: Date)
-
     @Query("UPDATE tasks SET progress = :progress WHERE id = :taskId")
     suspend fun updateTaskProgress(taskId: String, progress: Float)
 
