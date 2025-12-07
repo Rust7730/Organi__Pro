@@ -12,10 +12,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
+import com.e243768.organipro_.presentation.components.SharedBottomNavigation
 import com.e243768.organipro_.presentation.navigation.Routes
-import com.e243768.organipro_.presentation.viewmodels.home.HomeUiEvent
+import com.e243768.organipro_.presentation.viewmodels.home.UiEvent
 import com.e243768.organipro_.presentation.viewmodels.home.HomeViewModel
-import com.e243768.organipro_.presentation.views.home.components.HomeBottomNavigation
 import com.e243768.organipro_.presentation.views.home.components.HomeHeader
 import com.e243768.organipro_.presentation.views.home.components.TaskCard
 import com.e243768.organipro_.ui.theme.GradientWithStarsBackground
@@ -28,7 +28,6 @@ fun HomeScreen(
     val uiState by viewModel.uiState.collectAsState()
     val navigationEvent by viewModel.navigationEvent.collectAsState()
 
-    // Manejar navegación
     LaunchedEffect(navigationEvent) {
         when (navigationEvent) {
             is HomeViewModel.NavigationEvent.NavigateToSettings -> {
@@ -36,9 +35,6 @@ fun HomeScreen(
                 viewModel.onNavigationHandled()
             }
             is HomeViewModel.NavigationEvent.NavigateToRoute -> {
-                val event = navigationEvent as HomeViewModel.NavigationEvent.NavigateToRoute
-                // TODO: Implementar navegación a otras rutas cuando estén disponibles
-                println("Navigate to: ${event.route}")
                 viewModel.onNavigationHandled()
             }
             null -> { /* No hacer nada */ }
@@ -57,15 +53,14 @@ fun HomeScreen(
                     streak = uiState.streak,
                     avatarResId = uiState.avatarResId,
                     onSettingsClick = {
-                        viewModel.onEvent(HomeUiEvent.SettingsClicked)
+                        viewModel.onEvent(HomeUi.SettingsClicked)
                     }
                 )
             },
             bottomBar = {
-                HomeBottomNavigation(
-                    onNavItemClick = { route ->
-                        viewModel.onEvent(HomeUiEvent.NavigationItemClicked(route))
-                    }
+                SharedBottomNavigation(
+                    navController = navController,
+                    currentRoute = Routes.Home
                 )
             }
         ) { paddingValues ->

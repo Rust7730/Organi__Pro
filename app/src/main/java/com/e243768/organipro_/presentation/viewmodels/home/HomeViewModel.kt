@@ -3,6 +3,7 @@ package com.e243768.organipro_.presentation.viewmodels.home
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.e243768.organipro_.domain.model.Task
+import com.e243768.organipro_.presentation.viewmodels.home.UiEvent
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -24,13 +25,13 @@ class HomeViewModel : ViewModel() {
         loadTasks()
     }
 
-    fun onEvent(event: HomeUiEvent) {
+    fun onEvent(event: UiEvent) {
         when (event) {
-            is HomeUiEvent.TaskClicked -> handleTaskClick(event.task)
-            is HomeUiEvent.SettingsClicked -> handleSettingsClick()
-            is HomeUiEvent.CreateTaskClicked -> handleCreateTaskClick()
-            is HomeUiEvent.NavigationItemClicked -> handleNavigationClick(event.route)
-            is HomeUiEvent.RefreshTasks -> loadTasks()
+            is UiEvent.TaskClicked -> handleTaskClick(event.task)
+            is UiEvent.SettingsClicked -> handleSettingsClick()
+            is UiEvent.CreateTaskClicked -> handleCreateTaskClick()
+            is UiEvent.NavigationItemClicked -> handleNavigationClick(event.route)
+            is UiEvent.RefreshTasks -> loadTasks()
         }
     }
 
