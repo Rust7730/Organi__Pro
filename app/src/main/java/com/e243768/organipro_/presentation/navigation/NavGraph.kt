@@ -10,6 +10,7 @@ import com.e243768.organipro_.presentation.views.home.HomeScreen
 import com.e243768.organipro_.presentation.views.intro.IntroScreen
 import com.e243768.organipro_.presentation.views.splash.LoadingScreen
 import com.e243768.organipro_.presentation.views.tasks.daily.DailyTasksScreen
+import com.e243768.organipro_.presentation.views.tasks.weekly.WeeklyTasksScreen
 
 @Composable
 fun AppNavGraph(
@@ -57,8 +58,9 @@ fun AppNavGraph(
             DailyTasksScreen(navController)
         }
 
-        // Weekly Tasks (placeholder por ahora)
         composable(Routes.WeeklyTasks) {
+            WeeklyTasksScreen(navController)
+
         }
 
         // Monthly Tasks (placeholder por ahora)
