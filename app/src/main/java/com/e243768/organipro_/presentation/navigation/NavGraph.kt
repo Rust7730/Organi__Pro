@@ -8,6 +8,7 @@ import com.e243768.organipro_.presentation.views.auth.login.LoginScreen
 import com.e243768.organipro_.presentation.views.auth.signup.SignUpScreen
 import com.e243768.organipro_.presentation.views.home.HomeScreen
 import com.e243768.organipro_.presentation.views.intro.IntroScreen
+import com.e243768.organipro_.presentation.views.leaderboard.LeaderboardScreen
 import com.e243768.organipro_.presentation.views.splash.LoadingScreen
 import com.e243768.organipro_.presentation.views.tasks.daily.DailyTasksScreen
 import com.e243768.organipro_.presentation.views.tasks.detail.TaskDetailScreen
@@ -44,8 +45,9 @@ fun AppNavGraph(
             HomeScreen(navController = navController)
         }
 
-        // Leaderboard (placeholder por ahora)
         composable(Routes.Leaderboard) {
+            LeaderboardScreen(navController)
+
         }
 
         // Profile (placeholder por ahora)
