@@ -1,3 +1,4 @@
+// kotlin
 package com.e243768.organipro_.data.local.dao
 
 import androidx.room.*
@@ -31,15 +32,13 @@ interface UserDao {
     @Query("DELETE FROM user WHERE id = :userId")
     suspend fun deleteUserById(userId: String)
 
-    @Query("UPDATE user SET level = :level, current_xp = :xp WHERE id = :userId")
+    @Query("UPDATE user SET level = :level, xp = :xp WHERE id = :userId")
     suspend fun updateLevelAndXP(userId: String, level: Int, xp: Int)
-
     @Query("UPDATE user SET total_points = :points WHERE id = :userId")
     suspend fun updatePoints(userId: String, points: Int)
 
-    @Query("UPDATE user SET current_streak = :streak WHERE id = :userId")
+    @Query("UPDATE user SET streak = :streak WHERE id = :userId")
     suspend fun updateStreak(userId: String, streak: Int)
-
     @Query("UPDATE user SET synced = :synced WHERE id = :userId")
     suspend fun updateSyncStatus(userId: String, synced: Boolean)
 

@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "11167233554",
+    "project_id": "organipro-653ef",
+    "storage_bucket": "organipro-653ef.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:11167233554:android:9e8c9b0070f4fc61578acb",
+        "android_client_info": {
+          "package_name": "com.e243768.organipro_"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC5wVflnez8uU4e6BlSrR7I5QnmHCzeIV8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
