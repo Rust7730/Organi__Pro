@@ -10,6 +10,7 @@ import com.e243768.organipro_.presentation.views.home.HomeScreen
 import com.e243768.organipro_.presentation.views.intro.IntroScreen
 import com.e243768.organipro_.presentation.views.splash.LoadingScreen
 import com.e243768.organipro_.presentation.views.tasks.daily.DailyTasksScreen
+import com.e243768.organipro_.presentation.views.tasks.monthly.MonthlyTasksScreen
 import com.e243768.organipro_.presentation.views.tasks.weekly.WeeklyTasksScreen
 
 @Composable
@@ -63,8 +64,9 @@ fun AppNavGraph(
 
         }
 
-        // Monthly Tasks (placeholder por ahora)
         composable(Routes.MonthlyTasks) {
+            MonthlyTasksScreen(navController)
+
         }
 
         // Task Detail con parámetro (placeholder por ahora)
