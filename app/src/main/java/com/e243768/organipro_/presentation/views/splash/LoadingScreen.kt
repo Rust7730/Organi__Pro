@@ -13,6 +13,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.e243768.organipro_.R
@@ -24,8 +25,7 @@ import com.e243768.organipro_.ui.theme.gradientLigthly
 @Composable
 fun LoadingScreen(
     navController: NavController,
-    viewModel: SplashViewModel = viewModel()
-) {
+    viewModel: SplashViewModel = hiltViewModel()) {
     val uiState by viewModel.uiState.collectAsState()
 
     // Navegación automática

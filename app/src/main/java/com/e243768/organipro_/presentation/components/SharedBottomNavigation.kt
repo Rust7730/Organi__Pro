@@ -27,7 +27,7 @@ import com.e243768.organipro_.presentation.navigation.Routes
 @Composable
 fun SharedBottomNavigation(
     navController: NavController,
-    currentRoute: String,
+    currentRoute: String?,
     modifier: Modifier = Modifier
 ) {
     BottomAppBar(

@@ -3,17 +3,26 @@ package com.e243768.organipro_.presentation.viewmodels.tasks.detail
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import kotlinx.coroutines.delay
+import com.e243768.organipro_.core.result.Result
+import com.e243768.organipro_.core.util.DateUtils
+import com.e243768.organipro_.domain.repository.AttachmentRepository
+import com.e243768.organipro_.domain.repository.TaskRepository
+import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import javax.inject.Inject
 
-class TaskDetailViewModel(
+@HiltViewModel
+class TaskDetailViewModel @Inject constructor(
+    private val taskRepository: TaskRepository,
+    private val attachmentRepository: AttachmentRepository,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
+    // Recuperamos el ID pasado por la navegación
     private val taskId: String = savedStateHandle.get<String>("taskId") ?: ""
 
     private val _uiState = MutableStateFlow(TaskDetailUiState())
@@ -37,38 +46,36 @@ class TaskDetailViewModel(
     }
 
     private fun loadTaskDetail() {
+        if (taskId.isBlank()) {
+            _uiState.update { it.copy(isLoading = false, error = "ID de tarea inválido") }
+            return
+        }
+
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true) }
 
-            delay(1000)
-
-            // TODO: Cargar desde repository cuando esté implementado
-            val mockTask = TaskDetailUiState(
-                taskId = taskId,
-                title = "Terminar los diseños de Figma",
-                description = "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum",
-                priority = "Alta",
-                points = "200 pts.",
-                dueDate = "11:59 p.m.",
-                attachments = listOf(
-                    Attachment(
-                        id = "1",
-                        name = "Diseño_final.pdf",
-                        type = "pdf",
-                        size = "2.5 MB"
-                    ),
-                    Attachment(
-                        id = "2",
-                        name = "Referencias.jpg",
-                        type = "image",
-                        size = "1.8 MB"
-                    )
-                ),
-                isCompleted = false,
-                isLoading = false
-            )
-
-            _uiState.value = mockTask
+            // Observamos el flujo para tener actualizaciones en tiempo real
+            taskRepository.getTaskByIdFlow(taskId).collect { task ->
+                if (task != null) {
+                    _uiState.update { state ->
+                        state.copy(
+                            taskId = task.id,
+                            title = task.title,
+                            description = task.description,
+                            priority = task.priority.displayName,
+                            points = task.getFormattedPoints(),
+                            dueDate = task.dueDate?.let { DateUtils.formatDisplayDate(it) } ?: "Sin fecha",
+                            attachments = task.attachments,
+                            isCompleted = task.isCompleted(),
+                            isLoading = false
+                        )
+                    }
+                } else {
+                    _uiState.update {
+                        it.copy(isLoading = false, error = "La tarea no existe o fue eliminada")
+                    }
+                }
+            }
         }
     }
 
@@ -77,23 +84,58 @@ class TaskDetailViewModel(
     }
 
     private fun handleEditClick() {
-        // TODO: Navegar a pantalla de edición
+        // TODO: Navegar a pantalla de edición (Feature futura)
         println("Edit task: $taskId")
     }
 
     private fun handleDeleteClick() {
-        // TODO: Mostrar diálogo de confirmación y eliminar
-        println("Delete task: $taskId")
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoading = true) }
+
+            val result = taskRepository.deleteTask(taskId)
+
+            when (result) {
+                is Result.Success -> {
+                    // Si se borra con éxito, volvemos atrás
+                    _navigationEvent.value = NavigationEvent.NavigateBack
+                }
+                is Result.Error -> {
+                    _uiState.update {
+                        it.copy(isLoading = false, error = "Error al eliminar: ${result.message}")
+                    }
+                }
+                else -> {}
+            }
+        }
     }
 
     private fun handleAttachmentClick(attachmentId: String) {
-        // TODO: Abrir archivo adjunto
-        println("Open attachment: $attachmentId")
+        viewModelScope.launch {
+            val result = attachmentRepository.getAttachmentById(attachmentId)
+            if (result is Result.Success) {
+                // Aquí podríamos iniciar la descarga o abrir el visualizador
+                val attachment = result.data
+                println("Open attachment: ${attachment.name} (${attachment.url})")
+                // TODO: Implementar lógica de visualización de archivos (Intent o DownloadManager)
+            }
+        }
     }
 
     private fun handleMarkAsCompleted() {
-        _uiState.update { it.copy(isCompleted = !it.isCompleted) }
-        // TODO: Actualizar en repository
+        viewModelScope.launch {
+            val isCurrentlyCompleted = _uiState.value.isCompleted
+
+            val result = if (isCurrentlyCompleted) {
+                taskRepository.markTaskAsInProgress(taskId)
+            } else {
+                taskRepository.markTaskAsCompleted(taskId)
+            }
+
+            if (result is Result.Error) {
+                _uiState.update { it.copy(error = "Error al actualizar estado: ${result.message}") }
+            }
+            // El éxito no necesita acción manual porque estamos observando el Flow en loadTaskDetail
+        }
     }
 
     fun onNavigationHandled() {

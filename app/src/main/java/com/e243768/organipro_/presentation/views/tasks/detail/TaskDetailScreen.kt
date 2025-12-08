@@ -9,6 +9,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.e243768.organipro_.presentation.components.SharedBottomNavigation
@@ -22,7 +23,7 @@ import com.e243768.organipro_.ui.theme.GradientWithStarsBackground
 @Composable
 fun TaskDetailScreen(
     navController: NavController,
-    viewModel: TaskDetailViewModel = viewModel()
+    viewModel: TaskDetailViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val navigationEvent by viewModel.navigationEvent.collectAsState()
