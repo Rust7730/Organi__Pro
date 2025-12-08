@@ -3,12 +3,35 @@ package com.e243768.organipro_.data.remote.firebase
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.auth.UserProfileChangeRequest
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.tasks.await
+import javax.inject.Inject
+import kotlinx.coroutines.channels.awaitClose
+import kotlinx.coroutines.flow.callbackFlow
 
-class FirebaseAuthService(
-    private val firebaseAuth: FirebaseAuth = FirebaseAuth.getInstance()
+class FirebaseAuthService @Inject constructor(
+    private val firebaseAuth: FirebaseAuth
 ) {
 
+    /**
+     * Obtiene el estado de autenticación como un Flow.
+     * Notifica cuando el estado de autenticación está listo y reacciona a los cambios.
+     */
+    fun getAuthStateFlow(): Flow<FirebaseUser?> = callbackFlow {
+        // 1. Definimos el listener de Firebase
+        val authStateListener = FirebaseAuth.AuthStateListener { auth ->
+            // 2. Enviamos el usuario actual al flujo cada vez que cambia el estado
+            trySend(auth.currentUser)
+        }
+
+        // 3. Registramos el listener
+        firebaseAuth.addAuthStateListener(authStateListener)
+
+        // 4. Importante: Limpiamos el listener cuando el Flow se cierra (se deja de colectar)
+        awaitClose {
+            firebaseAuth.removeAuthStateListener(authStateListener)
+        }
+    }
     /**
      * Obtener el usuario actual autenticado
      */
@@ -21,13 +44,6 @@ class FirebaseAuthService(
      */
     fun getCurrentUserId(): String? {
         return firebaseAuth.currentUser?.uid
-    }
-
-    /**
-     * Verificar si hay un usuario autenticado
-     */
-    fun isUserLoggedIn(): Boolean {
-        return firebaseAuth.currentUser != null
     }
 
     /**

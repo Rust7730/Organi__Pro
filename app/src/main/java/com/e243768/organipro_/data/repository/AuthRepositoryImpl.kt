@@ -8,6 +8,8 @@ import com.e243768.organipro_.data.remote.mappers.UserMapper
 import com.e243768.organipro_.domain.model.User
 import com.e243768.organipro_.domain.repository.AuthRepository
 import com.e243768.organipro_.domain.repository.UserRepository
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
 import java.util.Date
 import javax.inject.Inject
 
@@ -16,6 +18,10 @@ class AuthRepositoryImpl @Inject constructor(
     private val firestoreService: FirebaseFirestoreService,
     private val userRepository: UserRepository
 ) : AuthRepository {
+
+    override fun getAuthStateFlow(): Flow<Boolean> {
+        return firebaseAuthService.getAuthStateFlow().map { it != null }
+    }
 
     override suspend fun signIn(email: String, password: String): Result<User> {
         return try {
@@ -123,10 +129,6 @@ class AuthRepositoryImpl @Inject constructor(
 
     override suspend fun getCurrentUserId(): String? {
         return firebaseAuthService.getCurrentUserId()
-    }
-
-    override suspend fun isUserLoggedIn(): Boolean {
-        return firebaseAuthService.isUserLoggedIn()
     }
 
     override suspend fun refreshSession(): Result<Unit> {

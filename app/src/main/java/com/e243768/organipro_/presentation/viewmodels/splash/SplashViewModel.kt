@@ -8,6 +8,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -29,9 +30,8 @@ class SplashViewModel @Inject constructor(
             // Mínimo tiempo de splash para mostrar la marca (2s)
             val minimumDelay = launch { delay(2000) }
 
-            // Verificar sesión real en paralelo
-            // TODO: Aquí también podríamos precargar datos esenciales si fuera necesario
-            val isUserLoggedIn = authRepository.isUserLoggedIn()
+            // Verificar sesión de forma reactiva, esperando el primer valor emitido por el Flow.
+            val isUserLoggedIn = authRepository.getAuthStateFlow().first()
 
             // Esperar a que termine el delay visual
             minimumDelay.join()
