@@ -2,14 +2,21 @@ package com.e243768.organipro_.presentation.viewmodels.auth.login
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import kotlinx.coroutines.delay
+import com.e243768.organipro_.core.result.Result
+import com.e243768.organipro_.core.util.ValidationUtils
+import com.e243768.organipro_.domain.repository.AuthRepository
+import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import javax.inject.Inject
 
-class LoginViewModel : ViewModel() {
+@HiltViewModel
+class LoginViewModel @Inject constructor(
+    private val authRepository: AuthRepository
+) : ViewModel() {
 
     private val _uiState = MutableStateFlow(LoginUiState())
     val uiState: StateFlow<LoginUiState> = _uiState.asStateFlow()
@@ -32,7 +39,7 @@ class LoginViewModel : ViewModel() {
         _uiState.update {
             it.copy(
                 email = email,
-                isEmailValid = validateEmail(email),
+                isEmailValid = ValidationUtils.isValidEmail(email),
                 error = null
             )
         }
@@ -42,7 +49,7 @@ class LoginViewModel : ViewModel() {
         _uiState.update {
             it.copy(
                 password = password,
-                isPasswordValid = validatePassword(password),
+                isPasswordValid = ValidationUtils.isValidPassword(password),
                 error = null
             )
         }
@@ -57,9 +64,8 @@ class LoginViewModel : ViewModel() {
     private fun handleLogin() {
         val currentState = _uiState.value
 
-        // Validar campos
-        val isEmailValid = validateEmail(currentState.email)
-        val isPasswordValid = validatePassword(currentState.password)
+        val isEmailValid = ValidationUtils.isValidEmail(currentState.email)
+        val isPasswordValid = ValidationUtils.isValidPassword(currentState.password)
 
         _uiState.update {
             it.copy(
@@ -70,19 +76,30 @@ class LoginViewModel : ViewModel() {
 
         if (!isEmailValid || !isPasswordValid) {
             _uiState.update {
-                it.copy(error = "Por favor, verifica los campos")
+                it.copy(error = "Por favor, verifica tus credenciales")
             }
             return
         }
 
-        // Simular login
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, error = null) }
 
-            delay(2000) // Simular llamada a API
+            val result = authRepository.signIn(
+                email = currentState.email,
+                password = currentState.password
+            )
 
             _uiState.update { it.copy(isLoading = false) }
-            _navigationEvent.value = NavigationEvent.NavigateToHome
+
+            when (result) {
+                is Result.Success -> {
+                    _navigationEvent.value = NavigationEvent.NavigateToHome
+                }
+                is Result.Error -> {
+                    _uiState.update { it.copy(error = result.message) }
+                }
+                else -> { /* Manejar Loading si fuera necesario */ }
+            }
         }
     }
 
@@ -91,21 +108,27 @@ class LoginViewModel : ViewModel() {
     }
 
     private fun handleForgotPassword() {
-        // TODO: Implementar recuperación de contraseña
-        _uiState.update {
-            it.copy(error = "Funcionalidad próximamente disponible")
+        val email = _uiState.value.email
+        if (!ValidationUtils.isValidEmail(email)) {
+            _uiState.update { it.copy(error = "Ingresa tu email para recuperar la contraseña") }
+            return
         }
-    }
 
-    private fun validateEmail(email: String): Boolean {
-        if (email.isBlank()) return true // No mostrar error si está vacío
-        val emailRegex = "^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$".toRegex()
-        return email.matches(emailRegex)
-    }
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoading = true) }
+            val result = authRepository.resetPassword(email)
+            _uiState.update { it.copy(isLoading = false) }
 
-    private fun validatePassword(password: String): Boolean {
-        if (password.isBlank()) return true // No mostrar error si está vacío
-        return password.length >= 6
+            when (result) {
+                is Result.Success -> {
+                    _uiState.update { it.copy(error = "Se ha enviado un correo de recuperación") }
+                }
+                is Result.Error -> {
+                    _uiState.update { it.copy(error = result.message) }
+                }
+                else -> {}
+            }
+        }
     }
 
     fun onNavigationHandled() {

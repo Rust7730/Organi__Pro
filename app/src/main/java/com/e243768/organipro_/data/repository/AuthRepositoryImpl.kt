@@ -9,8 +9,9 @@ import com.e243768.organipro_.domain.model.User
 import com.e243768.organipro_.domain.repository.AuthRepository
 import com.e243768.organipro_.domain.repository.UserRepository
 import java.util.Date
+import javax.inject.Inject
 
-class AuthRepositoryImpl(
+class AuthRepositoryImpl @Inject constructor(
     private val firebaseAuthService: FirebaseAuthService,
     private val firestoreService: FirebaseFirestoreService,
     private val userRepository: UserRepository

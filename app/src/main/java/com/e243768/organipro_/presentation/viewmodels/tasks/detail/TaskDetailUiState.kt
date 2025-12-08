@@ -1,5 +1,7 @@
 package com.e243768.organipro_.presentation.viewmodels.tasks.detail
 
+import com.e243768.organipro_.domain.model.Attachment
+
 data class TaskDetailUiState(
     val taskId: String = "",
     val title: String = "",
@@ -11,11 +13,4 @@ data class TaskDetailUiState(
     val isCompleted: Boolean = false,
     val isLoading: Boolean = true,
     val error: String? = null
-)
-
-data class Attachment(
-    val id: String,
-    val name: String,
-    val type: String, // "pdf", "image", "doc", etc.
-    val size: String
 )
