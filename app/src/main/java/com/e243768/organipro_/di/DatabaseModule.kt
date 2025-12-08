@@ -2,7 +2,8 @@ package com.e243768.organipro_.di
 
 import android.content.Context
 import androidx.room.Room
-import com.e243768.organipro_.data.local.dao.TaskDao
+import com.e243768.organipro_.core.constants.DatabaseConstants
+import com.e243768.organipro_.data.local.dao.*
 import com.e243768.organipro_.data.local.database.AppDatabase
 import dagger.Module
 import dagger.Provides
@@ -21,13 +22,45 @@ object DatabaseModule {
         return Room.databaseBuilder(
             context,
             AppDatabase::class.java,
-            AppDatabase.DATABASE_NAME
-        ).build()
+            DatabaseConstants.DATABASE_NAME
+        )
+            .fallbackToDestructiveMigration() // Útil durante desarrollo si cambias el esquema
+            .build()
+    }
+
+    @Provides
+    @Singleton
+    fun provideUserDao(database: AppDatabase): UserDao {
+        return database.userDao()
     }
 
     @Provides
     @Singleton
     fun provideTaskDao(database: AppDatabase): TaskDao {
         return database.taskDao()
+    }
+
+    @Provides
+    @Singleton
+    fun provideAttachmentDao(database: AppDatabase): AttachmentDao {
+        return database.attachmentDao()
+    }
+
+    @Provides
+    @Singleton
+    fun provideUserStatsDao(database: AppDatabase): UserStatsDao {
+        return database.userStatsDao()
+    }
+
+    @Provides
+    @Singleton
+    fun provideAchievementDao(database: AppDatabase): AchievementDao {
+        return database.achievementDao()
+    }
+
+    @Provides
+    @Singleton
+    fun provideUserRankDao(database: AppDatabase): UserRankDao {
+        return database.userRankDao()
     }
 }

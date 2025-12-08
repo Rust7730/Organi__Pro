@@ -18,15 +18,21 @@ object FirebaseModule {
 
     @Provides
     @Singleton
-    fun provideFirebaseAuth(): FirebaseAuth = FirebaseAuth.getInstance()
+    fun provideFirebaseAuth(): FirebaseAuth {
+        return FirebaseAuth.getInstance()
+    }
 
     @Provides
     @Singleton
-    fun provideFirebaseFirestore(): FirebaseFirestore = FirebaseFirestore.getInstance()
+    fun provideFirebaseFirestore(): FirebaseFirestore {
+        return FirebaseFirestore.getInstance()
+    }
 
     @Provides
     @Singleton
-    fun provideFirebaseStorage(): FirebaseStorage = FirebaseStorage.getInstance()
+    fun provideFirebaseStorage(): FirebaseStorage {
+        return FirebaseStorage.getInstance()
+    }
 
     @Provides
     @Singleton

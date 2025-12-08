@@ -23,7 +23,7 @@ import com.e243768.organipro_.presentation.views.tasks.weekly.WeeklyTasksScreen
 @Composable
 fun AppNavGraph(
     navController: NavHostController,
-    startDestination: String = Routes.DailyTasks
+    startDestination: String = Routes.Splash
 ) {
     NavHost(
         navController = navController,

@@ -10,8 +10,9 @@ import com.e243768.organipro_.domain.model.UserRank
 import com.e243768.organipro_.domain.repository.LeaderboardRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import javax.inject.Inject
 
-class LeaderboardRepositoryImpl(
+class LeaderboardRepositoryImpl @Inject constructor(
     private val userRankDao: UserRankDao,
     private val firestoreService: FirebaseFirestoreService
 ) : LeaderboardRepository {

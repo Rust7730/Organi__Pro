@@ -13,8 +13,9 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import java.util.Date
 import java.util.UUID
+import javax.inject.Inject
 
-class AchievementRepositoryImpl(
+class AchievementRepositoryImpl @Inject constructor(
     private val achievementDao: AchievementDao,
     private val firestoreService: FirebaseFirestoreService
 ) : AchievementRepository {

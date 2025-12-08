@@ -8,6 +8,7 @@ import com.e243768.organipro_.domain.model.Task
 import com.e243768.organipro_.domain.model.TaskStatus
 import com.e243768.organipro_.domain.repository.TaskRepository
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flowOf
 import java.util.Date
 import javax.inject.Inject
 
@@ -20,11 +21,11 @@ class TaskRepositoryImpl @Inject constructor(
     }
 
     override fun getTaskByIdFlow(taskId: String): Flow<Task?> {
-        TODO("Not yet implemented")
+        return flowOf(null) // Devuelve null de forma segura
     }
 
     override suspend fun getTasksByUserId(userId: String): Flow<List<Task>> {
-        TODO("Not yet implemented")
+        return flowOf(emptyList()) // Devuelve lista vacía
     }
 
     override suspend fun createTask(task: Task): Result<Task> {
@@ -40,35 +41,35 @@ class TaskRepositoryImpl @Inject constructor(
     }
 
     override suspend fun getTasksByStatus(userId: String, status: TaskStatus): Flow<List<Task>> {
-        TODO("Not yet implemented")
+        return flowOf(emptyList())
     }
 
     override suspend fun getTasksByPriority(userId: String, priority: Priority): Flow<List<Task>> {
-        TODO("Not yet implemented")
+        return flowOf(emptyList())
     }
 
     override suspend fun getTasksByDateRange(userId: String, startDate: Date, endDate: Date): Flow<List<Task>> {
-        TODO("Not yet implemented")
+        return flowOf(emptyList())
     }
 
     override suspend fun getCompletedTasks(userId: String): Flow<List<Task>> {
-        TODO("Not yet implemented")
+        return flowOf(emptyList())
     }
 
     override suspend fun getOverdueTasks(userId: String): Flow<List<Task>> {
-        TODO("Not yet implemented")
+        return flowOf(emptyList())
     }
 
     override suspend fun getTodayTasks(userId: String): Flow<List<Task>> {
-        TODO("Not yet implemented")
+        return flowOf(emptyList()) // Devuelve lista vacía
     }
 
     override suspend fun getWeekTasks(userId: String): Flow<List<Task>> {
-        TODO("Not yet implemented")
+        return flowOf(emptyList()) // Devuelve lista vacía
     }
 
     override suspend fun getMonthTasks(userId: String): Flow<List<Task>> {
-        TODO("Not yet implemented")
+        return flowOf(emptyList()) // Devuelve lista vacía
     }
 
     override suspend fun markTaskAsCompleted(taskId: String): Result<Unit> {

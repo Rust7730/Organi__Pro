@@ -13,8 +13,9 @@ import com.e243768.organipro_.domain.repository.UserRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import java.util.Date
+import javax.inject.Inject
 
-class UserRepositoryImpl(
+class UserRepositoryImpl @Inject constructor(
     private val userDao: UserDao,
     private val firebaseAuthService: FirebaseAuthService,
     private val firestoreService: FirebaseFirestoreService
