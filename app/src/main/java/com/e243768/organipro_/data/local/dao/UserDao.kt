@@ -7,6 +7,8 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface UserDao {
+    @Query("UPDATE user SET avatar_url = :photoUrl WHERE id = :userId")
+    suspend fun updatePhotoUrl(userId: String, photoUrl: String)
 
     @Query("SELECT * FROM user WHERE id = :userId")
     suspend fun getUserById(userId: String): UserEntity?

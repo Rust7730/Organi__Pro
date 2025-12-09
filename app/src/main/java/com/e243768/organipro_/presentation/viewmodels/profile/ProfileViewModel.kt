@@ -13,7 +13,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
-
+import android.net.Uri
 @HiltViewModel
 class ProfileViewModel @Inject constructor(
     private val userRepository: UserRepository,
@@ -36,9 +36,29 @@ class ProfileViewModel @Inject constructor(
             is ProfileUiEvent.SettingsClicked -> handleSettingsClick()
             is ProfileUiEvent.AvatarClicked -> handleAvatarClick()
             is ProfileUiEvent.RefreshProfile -> loadProfile()
+            is ProfileUiEvent.PhotoSelected -> uploadProfilePhoto(event.uri)
         }
     }
+    private fun uploadProfilePhoto(uri: Uri) {
+        viewModelScope.launch {
+            // marcar carga
+            _uiState.update { it.copy(isLoading = true) }
 
+            // validar usuario
+            val userId = authRepository.getCurrentUserId()
+            if (userId == null) {
+                _uiState.update { it.copy(isLoading = false, error = "Sesión no válida") }
+                return@launch
+            }
+
+            // TODO: implementar subida a Firebase Storage y actualizar documento de usuario en Firestore.
+            // Ejemplo (no implementado aquí): val url = storageRepo.upload(uri, "avatars/$userId") ...
+            println("uploadProfilePhoto: uri=$uri userId=$userId")
+
+            // finalizar carga
+            _uiState.update { it.copy(isLoading = false) }
+        }
+    }
     private fun loadProfile() {
         viewModelScope.launch {
             // 1. Obtener ID del usuario actual

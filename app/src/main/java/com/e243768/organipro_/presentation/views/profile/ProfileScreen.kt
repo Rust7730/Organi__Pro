@@ -1,6 +1,9 @@
 // presentation/views/profile/ProfileScreen.kt
 package com.e243768.organipro_.presentation.views.profile
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material3.*
@@ -26,7 +29,14 @@ fun ProfileScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val navigationEvent by viewModel.navigationEvent.collectAsState()
-
+    val singlePhotoPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.PickVisualMedia(),
+        onResult = { uri ->
+            if (uri != null) {
+                viewModel.onEvent(ProfileUiEvent.PhotoSelected(uri))
+            }
+        }
+    )
     // Manejar navegación
     LaunchedEffect(navigationEvent) {
         when (navigationEvent) {
@@ -78,9 +88,12 @@ fun ProfileScreen(
                     // Avatar
                     item {
                         ProfileAvatar(
-                            avatarResId = uiState.avatarResId,
-                            onClick = {
-                                viewModel.onEvent(ProfileUiEvent.AvatarClicked)
+                            imageUrl = uiState.photoUrl,
+                            onEditClick = {
+                                // Lanzar el selector de fotos
+                                singlePhotoPickerLauncher.launch(
+                                    PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                                )
                             }
                         )
                         Spacer(modifier = Modifier.height(32.dp))

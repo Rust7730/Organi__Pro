@@ -5,6 +5,7 @@ import com.e243768.organipro_.core.result.Result
 import com.e243768.organipro_.core.util.PointsCalculator
 import com.e243768.organipro_.data.local.dao.UserDao
 import com.e243768.organipro_.data.local.entities.UserEntity
+import com.e243768.organipro_.data.remote.cloudinary.CloudinaryService
 import com.e243768.organipro_.data.remote.firebase.FirebaseAuthService
 import com.e243768.organipro_.data.remote.firebase.FirebaseFirestoreService
 import com.e243768.organipro_.data.remote.mappers.UserMapper
@@ -14,11 +15,12 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import java.util.Date
 import javax.inject.Inject
-
+import android.net.Uri
 class UserRepositoryImpl @Inject constructor(
     private val userDao: UserDao,
     private val firebaseAuthService: FirebaseAuthService,
-    private val firestoreService: FirebaseFirestoreService
+    private val firestoreService: FirebaseFirestoreService,
+    private val cloudinaryService: CloudinaryService, // <--- INYECTAR ESTO
 ) : UserRepository {
 
     override suspend fun getUserById(userId: String): Result<User> {
@@ -323,4 +325,28 @@ class UserRepositoryImpl @Inject constructor(
             ?: throw IllegalStateException("Usuario no autenticado")
         return getUserByIdFlow(userId)
     }
-}
+    override suspend fun updateProfilePhoto(userId: String, imageUri: Uri): Result<String> {
+        return try {
+            // 1. Subir a Cloudinary
+            val photoUrl = cloudinaryService.uploadImage(imageUri)
+                ?: return Result.Error("Error al subir imagen a Cloudinary") // Corrección: String primero
+
+            // 2. Actualizar en Firebase (Usando tu firestoreService existente)
+            firestoreService.updateDocument(
+                collection = FirebaseConstants.COLLECTION_USERS,
+                documentId = userId,
+                updates = mapOf(
+                    "photoUrl" to photoUrl,
+                    "updatedAt" to com.google.firebase.Timestamp.now()
+                )
+            )
+
+            // 3. Actualizar en Base de datos Local (DAO)
+            userDao.updatePhotoUrl(userId, photoUrl)
+
+            Result.Success(photoUrl)
+        } catch (e: Exception) {
+            // Corrección: Mensaje String primero, excepción después
+            Result.Error("Error al actualizar foto: ${e.message}", e)
+        }
+    }}

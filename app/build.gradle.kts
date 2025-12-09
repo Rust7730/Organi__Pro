@@ -82,6 +82,11 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.7.3")
     implementation("com.google.firebase:firebase-analytics-ktx")
 
+
+    implementation("com.cloudinary:cloudinary-android:2.5.0")
+    // Para seleccionar imágenes (si no lo tienes ya)
+    implementation("io.coil-kt:coil-compose:2.5.0")
+
     implementation(libs.hilt.android)
     implementation(libs.hilt.navigation.compose)
     ksp(libs.hilt.compiler)

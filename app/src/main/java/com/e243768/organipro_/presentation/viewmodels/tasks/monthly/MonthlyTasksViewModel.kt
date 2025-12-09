@@ -29,6 +29,7 @@ class MonthlyTasksViewModel @Inject constructor(
     val navigationEvent: StateFlow<NavigationEvent?> = _navigationEvent.asStateFlow()
 
     private var currentCalendar = Calendar.getInstance()
+    private var cachedTasks: List<Task> = emptyList() // <--- AGREGADO: Cache para re-mapear al seleccionar día
 
     init {
         loadMonthlyTasks()
@@ -47,7 +48,6 @@ class MonthlyTasksViewModel @Inject constructor(
         viewModelScope.launch {
             val userId = authRepository.getCurrentUserId() ?: return@launch
 
-            // Actualizar etiqueta del mes
             _uiState.update {
                 it.copy(
                     isLoading = true,
@@ -55,43 +55,45 @@ class MonthlyTasksViewModel @Inject constructor(
                 )
             }
 
-            // Usamos getMonthTasks. De nuevo, asumimos que devuelve las tareas del mes "actual"
-            // o implementamos lógica de fechas en el repo.
             taskRepository.getMonthTasks(userId).collect { tasks ->
-                val gridData = mapTasksToMonthGrid(tasks, currentCalendar)
-
-                _uiState.update {
-                    it.copy(
-                        isLoading = false,
-                        days = gridData
-                    )
-                }
+                cachedTasks = tasks // Guardamos las tareas
+                updateGrid() // Actualizamos la UI
             }
         }
     }
 
-    private fun mapTasksToMonthGrid(tasks: List<Task>, calendar: Calendar): List<MonthlyDayData> {
+    // Función auxiliar para actualizar la UI (se llama al cargar datos o al cambiar selección)
+    private fun updateGrid() {
+        val selectedDate = _uiState.value.selectedDate
+        val gridData = mapTasksToMonthGrid(cachedTasks, currentCalendar, selectedDate)
+
+        _uiState.update {
+            it.copy(
+                isLoading = false,
+                days = gridData
+            )
+        }
+    }
+
+    private fun mapTasksToMonthGrid(tasks: List<Task>, calendar: Calendar, selectedDate: Date): List<MonthlyDayData> {
         val days = mutableListOf<MonthlyDayData>()
         val tempCal = calendar.clone() as Calendar
 
-        // Ir al primer día del mes
         tempCal.set(Calendar.DAY_OF_MONTH, 1)
         val maxDays = tempCal.getActualMaximum(Calendar.DAY_OF_MONTH)
-        val dayOfWeek = tempCal.get(Calendar.DAY_OF_WEEK) // 1=Domingo, 2=Lunes...
+        val dayOfWeek = tempCal.get(Calendar.DAY_OF_WEEK)
 
-        // Ajustar padding inicial (si el mes empieza en Miércoles, rellenar Lun y Mar)
-        // Suponiendo que la semana empieza en Lunes (Calendar.MONDAY = 2)
         val startOffset = if (dayOfWeek == Calendar.SUNDAY) 6 else dayOfWeek - 2
 
-        // Agregar días vacíos al inicio
         for (i in 0 until startOffset) {
             days.add(MonthlyDayData(date = null))
         }
 
-        // Agregar días del mes
         for (i in 1..maxDays) {
             val date = tempCal.time
             val isToday = DateUtils.isToday(date)
+            // Verificar si es el día seleccionado
+            val isSelected = DateUtils.isSameDay(date, selectedDate)
 
             val tasksForDay = tasks.filter { DateUtils.isSameDay(it.dueDate, date) }
             val completed = tasksForDay.count { it.isCompleted() }
@@ -103,7 +105,9 @@ class MonthlyTasksViewModel @Inject constructor(
                     hasTasks = tasksForDay.isNotEmpty(),
                     completedCount = completed,
                     totalCount = tasksForDay.size,
-                    isToday = isToday
+                    tasks = tasksForDay, // <--- AGREGADO: Pasamos las tareas
+                    isToday = isToday,
+                    isSelected = isSelected // <--- AGREGADO: Marcamos selección
                 )
             )
             tempCal.add(Calendar.DAY_OF_MONTH, 1)
@@ -118,9 +122,9 @@ class MonthlyTasksViewModel @Inject constructor(
     }
 
     private fun handleDayClick(date: Date) {
-        // Navegar al día específico
-        println("Date clicked: $date")
-        // _navigationEvent.value = NavigationEvent.NavigateToDaily(date)
+        // Actualizamos la fecha seleccionada y refrescamos la grilla
+        _uiState.update { it.copy(selectedDate = date) }
+        updateGrid()
     }
 
     fun onNavigationHandled() {
