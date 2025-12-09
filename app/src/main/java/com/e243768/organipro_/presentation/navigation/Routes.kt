@@ -21,7 +21,12 @@ object Routes {
 
     const val CreateTask = "create_task?time={time}"
 
-    // Helper para TaskDetail con parámetro
+    const val TaskDetailArg = "task_detail/{taskId}"
+    const val EditTaskArg = "edit_task/{taskId}"
+
+    fun getEditTaskRoute(taskId: String) = "$EditTask/$taskId"
+    const val EditTask = "edit_task"
+
     fun taskDetail(taskId: String) = "task_detail/$taskId"
     fun getTaskDetailRoute(taskId: String) = "task_detail/$taskId"
     fun getCreateTaskRoute(time: String = "") = "create_task?time=$time"

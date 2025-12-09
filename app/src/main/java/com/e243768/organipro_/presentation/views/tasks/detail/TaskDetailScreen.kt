@@ -1,4 +1,3 @@
-// presentation/views/tasks/detail/TaskDetailScreen.kt
 package com.e243768.organipro_.presentation.views.tasks.detail
 
 import androidx.compose.foundation.layout.*
@@ -9,8 +8,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.hilt.navigation.compose.hiltViewModel // <--- IMPORTANTE: Usar hiltViewModel
 import androidx.navigation.NavController
 import com.e243768.organipro_.presentation.components.SharedBottomNavigation
 import com.e243768.organipro_.presentation.navigation.Routes
@@ -23,19 +21,25 @@ import com.e243768.organipro_.ui.theme.GradientWithStarsBackground
 @Composable
 fun TaskDetailScreen(
     navController: NavController,
-    viewModel: TaskDetailViewModel = hiltViewModel()
+    taskId: String, // <--- AGREGADO: Recibir el ID
+    viewModel: TaskDetailViewModel = hiltViewModel() // <--- AGREGADO: Usar Hilt
 ) {
+    // Cargar la tarea al entrar a la pantalla
+    LaunchedEffect(taskId) {
+        viewModel.loadTask(taskId)
+    }
+
     val uiState by viewModel.uiState.collectAsState()
     val navigationEvent by viewModel.navigationEvent.collectAsState()
 
-    // Manejar navegación
     LaunchedEffect(navigationEvent) {
         when (navigationEvent) {
             is TaskDetailViewModel.NavigationEvent.NavigateBack -> {
                 navController.popBackStack()
                 viewModel.onNavigationHandled()
             }
-            null -> { /* No hacer nada */ }
+            null -> { }
+            is TaskDetailViewModel.NavigationEvent.NavigateToEdit -> TODO()
         }
     }
 
@@ -50,18 +54,15 @@ fun TaskDetailScreen(
                         viewModel.onEvent(TaskDetailUiEvent.BackClicked)
                     },
                     onEditClick = {
-                        viewModel.onEvent(TaskDetailUiEvent.EditClicked)
+                        viewModel.onEvent(TaskDetailUiEvent.EditTaskClicked)
                     },
                     onDeleteClick = {
-                        viewModel.onEvent(TaskDetailUiEvent.DeleteClicked)
+                        viewModel.onEvent(TaskDetailUiEvent.DeleteTaskClicked)
                     }
                 )
             },
             bottomBar = {
-                SharedBottomNavigation(
-                    navController = navController,
-                    currentRoute = Routes.TaskDetail
-                )
+                // Opcional: Mostrar navegación o botón de completar
             }
         ) { paddingValues ->
             if (uiState.isLoading) {
@@ -72,6 +73,14 @@ fun TaskDetailScreen(
                     contentAlignment = Alignment.Center
                 ) {
                     CircularProgressIndicator(color = Color.White)
+                }
+            } else if (uiState.error != null) {
+                // Mostrar error si la tarea no carga
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(text = uiState.error ?: "Error desconocido", color = Color.Red)
                 }
             } else {
                 LazyColumn(
@@ -87,8 +96,24 @@ fun TaskDetailScreen(
                                 viewModel.onEvent(
                                     TaskDetailUiEvent.AttachmentClicked(attachmentId)
                                 )
-                            }
+                            },
+                            // Aquí podrías agregar un botón para completar la tarea si no está en el Header
                         )
+
+                        // Ejemplo de botón completar al final
+                        Spacer(modifier = Modifier.height(24.dp))
+                        Button(
+                            onClick = { viewModel.onEvent(TaskDetailUiEvent.CompleteTaskClicked) },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = Color(0xFF4CAF50)
+                            )
+                        ) {
+                            Text("Completar Tarea (+100 XP)")
+                        }
+                        Spacer(modifier = Modifier.height(24.dp))
                     }
                 }
             }

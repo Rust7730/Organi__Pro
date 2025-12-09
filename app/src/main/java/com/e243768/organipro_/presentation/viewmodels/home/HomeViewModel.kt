@@ -33,6 +33,11 @@ class HomeViewModel @Inject constructor(
         loadData()
     }
 
+    // ESTA ES LA FUNCIÓN CORRECTA (La única que debes tener)
+    private fun handleTaskClick(task: Task) {
+        _navigationEvent.value = NavigationEvent.NavigateToTaskDetail(task.id)
+    }
+
     fun onEvent(event: HomeUiEvent) {
         when (event) {
             is HomeUiEvent.TaskClicked -> handleTaskClick(event.task)
@@ -47,7 +52,6 @@ class HomeViewModel @Inject constructor(
         viewModelScope.launch {
             val userId = authRepository.getCurrentUserId()
             if (userId == null) {
-                // Si no hay usuario, podríamos navegar al login (manejado por el MainActivity/NavGraph usualmente)
                 return@launch
             }
 
@@ -66,7 +70,7 @@ class HomeViewModel @Inject constructor(
                                     userName = user.getDisplayName(),
                                     userLevel = "Lv.${user.level}",
                                     streak = user.currentStreak,
-                                    avatarResId = 0 // TODO: Integrar carga de imagen real
+                                    avatarResId = 0
                                 )
                             }
                         }
@@ -82,7 +86,8 @@ class HomeViewModel @Inject constructor(
                     .collect { tasks ->
                         _uiState.update { state ->
                             state.copy(
-                                todayTasks = tasks,
+                                // FILTRO AGREGADO: Solo mostrar pendientes
+                                todayTasks = tasks.filter { !it.isCompleted() },
                                 isLoading = false
                             )
                         }
@@ -92,11 +97,11 @@ class HomeViewModel @Inject constructor(
             // 3. Observar tareas de la semana
             launch {
                 taskRepository.getWeekTasks(userId)
-                    .catch { /* Manejar error silenciosamente o mostrar snackbar */ }
+                    .catch { }
                     .collect { tasks ->
                         _uiState.update { state ->
-                            // Filtramos las que no son de hoy para no duplicar visualmente si el diseño lo requiere
-                            state.copy(weekTasks = tasks.filter { !it.isToday() })
+                            // FILTRO AGREGADO: Pendientes y que no sean de hoy
+                            state.copy(weekTasks = tasks.filter { !it.isCompleted() && !it.isToday() })
                         }
                     }
             }
@@ -104,24 +109,22 @@ class HomeViewModel @Inject constructor(
     }
 
     private fun refreshData() {
-        // Al usar Flows, los datos se actualizan solos si la DB cambia.
-        // Si necesitamos forzar sincronización con la nube:
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true) }
             val userId = authRepository.getCurrentUserId() ?: return@launch
 
             // Forzar sync
-            userRepository.syncUser(userRepository.getUserById(userId).getOrNull() ?: return@launch)
+            val userResult = userRepository.getUserById(userId)
+            if (userResult is com.e243768.organipro_.core.result.Result.Success) {
+                userRepository.syncUser(userResult.data)
+            }
             taskRepository.syncAllTasks(userId)
 
             _uiState.update { it.copy(isLoading = false) }
         }
     }
 
-    private fun handleTaskClick(task: Task) {
-        // TODO: Navegar a detalle de tarea con ID real
-        println("Task clicked: ${task.id}")
-    }
+    // --- He eliminado la función duplicada handleTaskClick que estaba aquí ---
 
     private fun handleSettingsClick() {
         _navigationEvent.value = NavigationEvent.NavigateToSettings
@@ -142,5 +145,6 @@ class HomeViewModel @Inject constructor(
     sealed class NavigationEvent {
         object NavigateToSettings : NavigationEvent()
         data class NavigateToRoute(val route: String) : NavigationEvent()
+        data class NavigateToTaskDetail(val taskId: String) : NavigationEvent()
     }
 }

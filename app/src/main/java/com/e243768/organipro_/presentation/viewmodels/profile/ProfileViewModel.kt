@@ -2,14 +2,24 @@ package com.e243768.organipro_.presentation.viewmodels.profile
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import kotlinx.coroutines.delay
+import com.e243768.organipro_.core.result.Result
+import com.e243768.organipro_.domain.repository.AuthRepository
+import com.e243768.organipro_.domain.repository.UserRepository
+import com.e243768.organipro_.domain.repository.UserStatsRepository
+import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import javax.inject.Inject
 
-class ProfileViewModel : ViewModel() {
+@HiltViewModel
+class ProfileViewModel @Inject constructor(
+    private val userRepository: UserRepository,
+    private val userStatsRepository: UserStatsRepository,
+    private val authRepository: AuthRepository
+) : ViewModel() {
 
     private val _uiState = MutableStateFlow(ProfileUiState())
     val uiState: StateFlow<ProfileUiState> = _uiState.asStateFlow()
@@ -31,25 +41,58 @@ class ProfileViewModel : ViewModel() {
 
     private fun loadProfile() {
         viewModelScope.launch {
+            // 1. Obtener ID del usuario actual
+            val userId = authRepository.getCurrentUserId()
+            if (userId == null) {
+                _uiState.update { it.copy(isLoading = false, error = "Sesión no válida") }
+                return@launch
+            }
+
             _uiState.update { it.copy(isLoading = true) }
 
-            delay(1000)
+            // 2. Cargar datos básicos del Usuario (Nombre, Nivel, XP)
+            val userResult = userRepository.getUserById(userId)
+            if (userResult is Result.Success) {
+                val user = userResult.data
+                _uiState.update {
+                    it.copy(
+                        userName = user.getDisplayName(),
+                        userAlias = user.alias, // Asegúrate de que tu modelo User tenga 'alias'
+                        currentLevel = user.level,
+                        currentXP = user.currentXP,
+                        maxXP = user.getXPForNextLevel(), // Método del dominio
+                        avatarResId = 0 // TODO: Manejar URL de avatar real
+                    )
+                }
+            }
 
-            // TODO: Cargar desde repository cuando esté implementado
-            val mockProfile = ProfileUiState(
-                userName = "RustlessCar7730",
-                userAlias = "@rustless",
-                currentLevel = 20,
-                currentXP = 450,
-                maxXP = 1000,
-                totalPoints = 15240,
-                tasksCompleted = 127,
-                currentStreak = 20,
-                avatarResId = 0,
-                isLoading = false
-            )
+            // 3. Cargar Estadísticas detalladas (Puntos, Tareas, Rachas)
+            // Usamos UserStatsRepository para obtener datos agregados
+            val statsResult = userStatsRepository.getUserStats(userId)
+            if (statsResult is Result.Success) {
+                val stats = statsResult.data
+                _uiState.update {
+                    it.copy(
+                        totalPoints = stats.totalPoints,
+                        tasksCompleted = stats.tasksCompleted,
+                        currentStreak = stats.currentStreak
+                    )
+                }
+            } else {
+                // Si falla stats, intentamos usar los datos del usuario como fallback
+                if (userResult is Result.Success) {
+                    val user = userResult.data
+                    _uiState.update {
+                        it.copy(
+                            totalPoints = user.totalPoints,
+                            tasksCompleted = user.tasksCompleted,
+                            currentStreak = user.currentStreak
+                        )
+                    }
+                }
+            }
 
-            _uiState.value = mockProfile
+            _uiState.update { it.copy(isLoading = false) }
         }
     }
 
@@ -58,7 +101,7 @@ class ProfileViewModel : ViewModel() {
     }
 
     private fun handleAvatarClick() {
-        // TODO: Abrir selector de avatar
+        // TODO: Implementar lógica de selección de imagen/avatar
         println("Avatar clicked")
     }
 

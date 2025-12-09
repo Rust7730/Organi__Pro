@@ -29,6 +29,10 @@ fun HomeScreen(
     val uiState by viewModel.uiState.collectAsState()
     val navigationEvent by viewModel.navigationEvent.collectAsState()
 
+
+// ... Dentro del composable HomeScreen
+
+    // Manejar navegación
     LaunchedEffect(navigationEvent) {
         when (navigationEvent) {
             is HomeViewModel.NavigationEvent.NavigateToSettings -> {
@@ -36,12 +40,18 @@ fun HomeScreen(
                 viewModel.onNavigationHandled()
             }
             is HomeViewModel.NavigationEvent.NavigateToRoute -> {
+                navController.navigate((navigationEvent as HomeViewModel.NavigationEvent.NavigateToRoute).route)
+                viewModel.onNavigationHandled()
+            }
+            // --- NUEVO CASO ---
+            is HomeViewModel.NavigationEvent.NavigateToTaskDetail -> {
+                val taskId = (navigationEvent as HomeViewModel.NavigationEvent.NavigateToTaskDetail).taskId
+                navController.navigate(Routes.getTaskDetailRoute(taskId))
                 viewModel.onNavigationHandled()
             }
             null -> { /* No hacer nada */ }
         }
     }
-
     Box(modifier = Modifier.fillMaxSize()) {
         GradientWithStarsBackground()
 

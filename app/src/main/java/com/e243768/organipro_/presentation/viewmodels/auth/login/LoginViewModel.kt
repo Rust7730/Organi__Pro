@@ -26,68 +26,38 @@ class LoginViewModel @Inject constructor(
 
     fun onEvent(event: LoginUiEvent) {
         when (event) {
-            is LoginUiEvent.EmailChanged -> handleEmailChanged(event.email)
-            is LoginUiEvent.PasswordChanged -> handlePasswordChanged(event.password)
-            is LoginUiEvent.TogglePasswordVisibility -> togglePasswordVisibility()
+            is LoginUiEvent.EmailChanged -> {
+                _uiState.update { it.copy(email = event.email, error = null) }
+            }
+            is LoginUiEvent.PasswordChanged -> {
+                _uiState.update { it.copy(password = event.password, error = null) }
+            }
+            is LoginUiEvent.TogglePasswordVisibility -> {
+                _uiState.update { it.copy(passwordVisible = !it.passwordVisible) }
+            }
             is LoginUiEvent.LoginClicked -> handleLogin()
-            is LoginUiEvent.SignUpClicked -> handleSignUpClick()
+            is LoginUiEvent.SignUpClicked -> _navigationEvent.value = NavigationEvent.NavigateToSignUp
             is LoginUiEvent.ForgotPasswordClicked -> handleForgotPassword()
         }
     }
 
-    private fun handleEmailChanged(email: String) {
-        _uiState.update {
-            it.copy(
-                email = email,
-                isEmailValid = ValidationUtils.isValidEmail(email),
-                error = null
-            )
-        }
-    }
-
-    private fun handlePasswordChanged(password: String) {
-        _uiState.update {
-            it.copy(
-                password = password,
-                isPasswordValid = ValidationUtils.isValidPassword(password),
-                error = null
-            )
-        }
-    }
-
-    private fun togglePasswordVisibility() {
-        _uiState.update {
-            it.copy(passwordVisible = !it.passwordVisible)
-        }
-    }
-
     private fun handleLogin() {
-        val currentState = _uiState.value
+        val email = _uiState.value.email.trim()
+        val password = _uiState.value.password
 
-        val isEmailValid = ValidationUtils.isValidEmail(currentState.email)
-        val isPasswordValid = ValidationUtils.isValidPassword(currentState.password)
-
-        _uiState.update {
-            it.copy(
-                isEmailValid = isEmailValid,
-                isPasswordValid = isPasswordValid
-            )
+        if (!ValidationUtils.isValidEmail(email)) {
+            _uiState.update { it.copy(error = "Email inválido", isEmailValid = false) }
+            return
         }
-
-        if (!isEmailValid || !isPasswordValid) {
-            _uiState.update {
-                it.copy(error = "Por favor, verifica tus credenciales")
-            }
+        if (password.isBlank()) {
+            _uiState.update { it.copy(error = "Ingresa tu contraseña", isPasswordValid = false) }
             return
         }
 
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, error = null) }
 
-            val result = authRepository.signIn(
-                email = currentState.email,
-                password = currentState.password
-            )
+            val result = authRepository.signIn(email, password)
 
             _uiState.update { it.copy(isLoading = false) }
 
@@ -98,35 +68,25 @@ class LoginViewModel @Inject constructor(
                 is Result.Error -> {
                     _uiState.update { it.copy(error = result.message) }
                 }
-                else -> { /* Manejar Loading si fuera necesario */ }
+                else -> {}
             }
         }
     }
 
-    private fun handleSignUpClick() {
-        _navigationEvent.value = NavigationEvent.NavigateToSignUp
-    }
-
     private fun handleForgotPassword() {
-        val email = _uiState.value.email
+        val email = _uiState.value.email.trim()
         if (!ValidationUtils.isValidEmail(email)) {
             _uiState.update { it.copy(error = "Ingresa tu email para recuperar la contraseña") }
             return
         }
-
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true) }
             val result = authRepository.resetPassword(email)
-            _uiState.update { it.copy(isLoading = false) }
-
-            when (result) {
-                is Result.Success -> {
-                    _uiState.update { it.copy(error = "Se ha enviado un correo de recuperación") }
-                }
-                is Result.Error -> {
-                    _uiState.update { it.copy(error = result.message) }
-                }
-                else -> {}
+            _uiState.update {
+                it.copy(
+                    isLoading = false,
+                    error = if (result is Result.Error) result.message else "Correo de recuperación enviado"
+                )
             }
         }
     }

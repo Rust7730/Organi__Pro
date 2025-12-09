@@ -26,95 +26,43 @@ class SignUpViewModel @Inject constructor(
 
     fun onEvent(event: SignUpUiEvent) {
         when (event) {
-            is SignUpUiEvent.NameChanged -> handleNameChanged(event.name)
-            is SignUpUiEvent.AliasChanged -> handleAliasChanged(event.alias)
-            is SignUpUiEvent.EmailChanged -> handleEmailChanged(event.email)
-            is SignUpUiEvent.PasswordChanged -> handlePasswordChanged(event.password)
-            is SignUpUiEvent.TogglePasswordVisibility -> togglePasswordVisibility()
+            is SignUpUiEvent.NameChanged -> _uiState.update { it.copy(name = event.name, error = null) }
+            is SignUpUiEvent.AliasChanged -> _uiState.update { it.copy(alias = event.alias, error = null) }
+            is SignUpUiEvent.EmailChanged -> _uiState.update { it.copy(email = event.email, error = null) }
+            is SignUpUiEvent.PasswordChanged -> _uiState.update { it.copy(password = event.password, error = null) }
+            is SignUpUiEvent.TogglePasswordVisibility -> _uiState.update { it.copy(passwordVisible = !it.passwordVisible) }
             is SignUpUiEvent.SignUpClicked -> handleSignUp()
-            is SignUpUiEvent.LoginClicked -> handleLoginClick()
-        }
-    }
-
-    private fun handleNameChanged(name: String) {
-        _uiState.update {
-            it.copy(
-                name = name,
-                isNameValid = ValidationUtils.isValidName(name),
-                error = null
-            )
-        }
-    }
-
-    private fun handleAliasChanged(alias: String) {
-        _uiState.update {
-            it.copy(
-                alias = alias,
-                isAliasValid = ValidationUtils.isValidAlias(alias),
-                error = null
-            )
-        }
-    }
-
-    private fun handleEmailChanged(email: String) {
-        _uiState.update {
-            it.copy(
-                email = email,
-                isEmailValid = ValidationUtils.isValidEmail(email),
-                error = null
-            )
-        }
-    }
-
-    private fun handlePasswordChanged(password: String) {
-        _uiState.update {
-            it.copy(
-                password = password,
-                isPasswordValid = ValidationUtils.isValidPassword(password),
-                error = null
-            )
-        }
-    }
-
-    private fun togglePasswordVisibility() {
-        _uiState.update {
-            it.copy(passwordVisible = !it.passwordVisible)
+            is SignUpUiEvent.LoginClicked -> _navigationEvent.value = NavigationEvent.NavigateToLogin
         }
     }
 
     private fun handleSignUp() {
-        val currentState = _uiState.value
+        val name = _uiState.value.name.trim()
+        val alias = _uiState.value.alias.trim()
+        val email = _uiState.value.email.trim()
+        val password = _uiState.value.password
 
-        val isNameValid = ValidationUtils.isValidName(currentState.name)
-        val isAliasValid = ValidationUtils.isValidAlias(currentState.alias)
-        val isEmailValid = ValidationUtils.isValidEmail(currentState.email)
-        val isPasswordValid = ValidationUtils.isValidPassword(currentState.password)
-
-        _uiState.update {
-            it.copy(
-                isNameValid = isNameValid,
-                isAliasValid = isAliasValid,
-                isEmailValid = isEmailValid,
-                isPasswordValid = isPasswordValid
-            )
+        if (!ValidationUtils.isValidName(name)) {
+            _uiState.update { it.copy(error = "Nombre inválido (mínimo 2 letras)", isNameValid = false) }
+            return
         }
-
-        if (!isNameValid || !isAliasValid || !isEmailValid || !isPasswordValid) {
-            _uiState.update {
-                it.copy(error = "Por favor, completa todos los campos correctamente")
-            }
+        if (!ValidationUtils.isValidAlias(alias)) {
+            _uiState.update { it.copy(error = "Alias inválido (mínimo 3 letras)", isAliasValid = false) }
+            return
+        }
+        if (!ValidationUtils.isValidEmail(email)) {
+            _uiState.update { it.copy(error = "Email inválido", isEmailValid = false) }
+            return
+        }
+        if (!ValidationUtils.isValidPassword(password)) {
+            _uiState.update { it.copy(error = "Contraseña muy corta (mínimo 6 caracteres)", isPasswordValid = false) }
             return
         }
 
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, error = null) }
 
-            val result = authRepository.signUp(
-                name = currentState.name,
-                alias = currentState.alias,
-                email = currentState.email,
-                password = currentState.password
-            )
+            val result = authRepository.signUp(name, alias, email, password)
 
             _uiState.update { it.copy(isLoading = false) }
 
@@ -128,10 +76,6 @@ class SignUpViewModel @Inject constructor(
                 else -> {}
             }
         }
-    }
-
-    private fun handleLoginClick() {
-        _navigationEvent.value = NavigationEvent.NavigateToLogin
     }
 
     fun onNavigationHandled() {

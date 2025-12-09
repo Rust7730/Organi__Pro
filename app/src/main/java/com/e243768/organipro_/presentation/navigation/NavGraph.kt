@@ -31,7 +31,6 @@ fun AppNavGraph(
     ) {
         composable(Routes.Splash) {
             LoadingScreen(navController)
-
         }
 
         composable(Routes.Intro) {
@@ -52,17 +51,14 @@ fun AppNavGraph(
 
         composable(Routes.Leaderboard) {
             LeaderboardScreen(navController)
-
         }
 
         composable(Routes.Profile) {
             ProfileScreen(navController)
-
         }
 
         composable(Routes.Settings) {
             SettingsScreen(navController)
-
         }
 
         composable(Routes.DailyTasks) {
@@ -71,33 +67,45 @@ fun AppNavGraph(
 
         composable(Routes.WeeklyTasks) {
             WeeklyTasksScreen(navController)
-
         }
 
         composable(Routes.MonthlyTasks) {
             MonthlyTasksScreen(navController)
-
         }
 
-        composable(Routes.TaskDetail) {
-                backStackEntry ->
-            TaskDetailScreen(navController)        }
         composable(
-            route = Routes.CreateTask,
+            route = Routes.TaskDetailArg, // Usamos la constante con /{taskId}
             arguments = listOf(
-                navArgument("time") {
-                    type = NavType.StringType
-                    defaultValue = ""
-                    nullable = true
-                }
+                navArgument("taskId") { type = NavType.StringType }
+            )
+        ) { backStackEntry ->
+            val taskId = backStackEntry.arguments?.getString("taskId") ?: ""
+            TaskDetailScreen(
+                navController = navController,
+                taskId = taskId
+            )
+        }
+        composable(
+            route = Routes.EditTaskArg, // "edit_task/{taskId}"
+            arguments = listOf(
+                navArgument("taskId") { type = NavType.StringType }
             )
         ) {
-            CreateTaskScreen(
-                onNavigateBack = { navController.popBackStack() }
-            )
+            // Hilt inyectará automáticamente el taskId en el SavedStateHandle del ViewModel
+            CreateTaskScreen(navController = navController)
+        }
+        // --- CORRECCIÓN AQUÍ ---
+        composable(
+            route = Routes.CreateTask,
+            arguments = listOf(navArgument("time") { type = NavType.StringType; nullable = true })
+        ) {
+            CreateTaskScreen(navController = navController)
+        }
+        composable(
+            route = Routes.EditTaskArg,
+            arguments = listOf(navArgument("taskId") { type = NavType.StringType })
+        ) {
+            CreateTaskScreen(navController = navController)
         }
     }
-
-
-
 }
