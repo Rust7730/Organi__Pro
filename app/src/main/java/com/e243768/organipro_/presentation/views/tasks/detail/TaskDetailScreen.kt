@@ -1,5 +1,7 @@
 package com.e243768.organipro_.presentation.views.tasks.detail
 
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material3.*
@@ -7,6 +9,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel // <--- IMPORTANTE: Usar hiltViewModel
 import androidx.navigation.NavController
@@ -24,6 +27,8 @@ fun TaskDetailScreen(
     taskId: String, // <--- AGREGADO: Recibir el ID
     viewModel: TaskDetailViewModel = hiltViewModel() // <--- AGREGADO: Usar Hilt
 ) {
+    val context = LocalContext.current
+
     // Cargar la tarea al entrar a la pantalla
     LaunchedEffect(taskId) {
         viewModel.loadTask(taskId)
@@ -36,6 +41,22 @@ fun TaskDetailScreen(
         when (navigationEvent) {
             is TaskDetailViewModel.NavigationEvent.NavigateBack -> {
                 navController.popBackStack()
+                viewModel.onNavigationHandled()
+            }
+            is TaskDetailViewModel.NavigationEvent.NavigateOpenAttachment -> {
+                val url = (navigationEvent as TaskDetailViewModel.NavigationEvent.NavigateOpenAttachment).url
+                val mime = (navigationEvent as TaskDetailViewModel.NavigationEvent.NavigateOpenAttachment).mimeType
+                try {
+                    val intent = Intent(Intent.ACTION_VIEW).apply {
+                        data = Uri.parse(url)
+                        mime?.let { type = it }
+                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    }
+                    context.startActivity(intent)
+                } catch (e: Exception) {
+                    // abrir en fallback: navegador
+                    try { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)).apply { addFlags(Intent.FLAG_ACTIVITY_NEW_TASK) }) } catch (_: Exception) { }
+                }
                 viewModel.onNavigationHandled()
             }
             null -> { }

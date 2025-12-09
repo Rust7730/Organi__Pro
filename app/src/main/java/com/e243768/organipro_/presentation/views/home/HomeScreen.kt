@@ -11,7 +11,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.e243768.organipro_.presentation.components.SharedBottomNavigation
 import com.e243768.organipro_.presentation.navigation.Routes
@@ -65,7 +64,8 @@ fun HomeScreen(
                     avatarResId = uiState.avatarResId,
                     onSettingsClick = {
                         viewModel.onEvent(HomeUiEvent.SettingsClicked)  // ✅ Correcto
-                    }
+                    },
+                    onAvatarClick = { navController.navigate(Routes.Profile) }
                 )
             },
             bottomBar = {

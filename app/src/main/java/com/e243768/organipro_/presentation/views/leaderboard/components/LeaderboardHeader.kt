@@ -1,6 +1,7 @@
 package com.e243768.organipro_.presentation.views.leaderboard.components
 
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
@@ -22,8 +23,9 @@ import com.e243768.organipro_.presentation.viewmodels.leaderboard.LeaderboardUse
 @Composable
 fun LeaderboardHeader(
     currentUser: LeaderboardUser?,
+    modifier: Modifier = Modifier,
     onSettingsClick: () -> Unit,
-    modifier: Modifier = Modifier
+    onAvatarClick: (() -> Unit)? = null
 ) {
     Row(
         modifier = modifier
@@ -35,11 +37,12 @@ fun LeaderboardHeader(
     ) {
         // Avatar + Info
         Row(verticalAlignment = Alignment.CenterVertically) {
-            // Avatar placeholder
+            // Avatar placeholder (clicable si se provee onAvatarClick)
             Box(
                 modifier = Modifier
                     .size(48.dp)
-                    .clip(CircleShape),
+                    .clip(CircleShape)
+                    .let { m -> if (onAvatarClick != null) m.clickable { onAvatarClick() } else m },
                 contentAlignment = Alignment.Center
             ) {
                 Canvas(modifier = Modifier.fillMaxSize()) {
@@ -57,7 +60,7 @@ fun LeaderboardHeader(
                     fontSize = 16.sp
                 )
                 Text(
-                    text = "Lv.20",
+                    text = "Lv.${currentUser?.level ?: 1}",
                     color = Color(0xFFB0AEC3),
                     fontSize = 14.sp
                 )
@@ -74,7 +77,7 @@ fun LeaderboardHeader(
             )
             Spacer(modifier = Modifier.width(4.dp))
             Text(
-                text = "20",
+                text = "${currentUser?.streak ?: 0}",
                 color = Color.White,
                 fontWeight = FontWeight.Bold,
                 fontSize = 18.sp

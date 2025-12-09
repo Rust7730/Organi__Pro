@@ -1,14 +1,18 @@
 package com.e243768.organipro_.data.remote.firebase
 
 import android.net.Uri
+import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.storage.FirebaseStorage
+import com.google.firebase.storage.StorageException
 import com.google.firebase.storage.StorageMetadata
 import com.google.firebase.storage.StorageReference
 import kotlinx.coroutines.tasks.await
 import java.io.File
+import java.io.InputStream
 
 class FirebaseStorageService(
-    private val storage: FirebaseStorage = FirebaseStorage.getInstance()
+    private val storage: FirebaseStorage = FirebaseStorage.getInstance(),
+    private val auth: FirebaseAuth? = null
 ) {
 
     /**
@@ -20,8 +24,15 @@ class FirebaseStorageService(
         metadata: StorageMetadata? = null,
         onProgress: ((Double) -> Unit)? = null
     ): String {
-        return try {
+        try {
             val storageRef = storage.reference.child(path)
+
+            // Diagnostics
+            try {
+                val bucket = storage.app.options.storageBucket ?: "(no-bucket)"
+                val uid = auth?.currentUser?.uid ?: "(no-user)"
+                println("[FirebaseStorageService] uploadFile -> bucket=$bucket path=${storageRef.path} uid=$uid")
+            } catch (_: Exception) { }
 
             val uploadTask = if (metadata != null) {
                 storageRef.putFile(fileUri, metadata)
@@ -40,8 +51,39 @@ class FirebaseStorageService(
             uploadTask.await()
 
             // Obtener URL de descarga
-            storageRef.downloadUrl.await().toString()
+            return storageRef.downloadUrl.await().toString()
+        } catch (se: StorageException) {
+            se.printStackTrace()
+            val code = se.errorCode
+            val msg = se.message ?: "StorageException"
+
+            // Si es 404 intentar reintentar con bucket fallback
+            if (msg.contains("Not Found", ignoreCase = true) || code == -13010) {
+                try {
+                    val projectId = try { com.google.firebase.FirebaseApp.getInstance().options.projectId } catch (_: Exception) { null }
+                    if (!projectId.isNullOrBlank()) {
+                        val fallbackBucket = "gs://$projectId.appspot.com"
+                        println("[FirebaseStorageService] Detected 404; attempting upload with fallback bucket=$fallbackBucket")
+                        val fallbackStorage = FirebaseStorage.getInstance(fallbackBucket)
+                        val fallbackRef = fallbackStorage.reference.child(path)
+
+                        val fallbackTask = if (metadata != null) {
+                            fallbackRef.putFile(fileUri, metadata)
+                        } else {
+                            fallbackRef.putFile(fileUri)
+                        }
+                        fallbackTask.await()
+                        return fallbackRef.downloadUrl.await().toString()
+                    }
+                } catch (fe: Exception) {
+                    fe.printStackTrace()
+                    // continuar y relanzar el error original
+                }
+            }
+
+            throw Exception("StorageException(code=$code): $msg", se)
         } catch (e: Exception) {
+            e.printStackTrace()
             throw e
         }
     }
@@ -164,6 +206,75 @@ class FirebaseStorageService(
      */
     fun getFileReference(path: String): StorageReference {
         return storage.reference.child(path)
+    }
+
+    /**
+     * Subir stream de un archivo (útil para content:// URIs grandes)
+     */
+    suspend fun uploadStream(
+        path: String,
+        stream: InputStream,
+        metadata: StorageMetadata? = null,
+        onProgress: ((Double) -> Unit)? = null
+    ): String {
+        try {
+            val storageRef = storage.reference.child(path)
+
+            try {
+                val bucket = storage.app.options.storageBucket ?: "(no-bucket)"
+                val uid = auth?.currentUser?.uid ?: "(no-user)"
+                println("[FirebaseStorageService] uploadStream -> bucket=$bucket path=${storageRef.path} uid=$uid")
+            } catch (_: Exception) { }
+
+            val uploadTask = if (metadata != null) {
+                storageRef.putStream(stream, metadata)
+            } else {
+                storageRef.putStream(stream)
+            }
+
+            onProgress?.let { progressCallback ->
+                uploadTask.addOnProgressListener { taskSnapshot ->
+                    val progress = (100.0 * taskSnapshot.bytesTransferred) / taskSnapshot.totalByteCount
+                    progressCallback(progress)
+                }
+            }
+
+            uploadTask.await()
+            return storageRef.downloadUrl.await().toString()
+        } catch (se: StorageException) {
+            se.printStackTrace()
+            val code = se.errorCode
+            val msg = se.message ?: "StorageException"
+
+            // Si es 404 intentar reintentar con bucket fallback
+            if (msg.contains("Not Found", ignoreCase = true) || code == -13010) {
+                try {
+                    val projectId = try { com.google.firebase.FirebaseApp.getInstance().options.projectId } catch (_: Exception) { null }
+                    if (!projectId.isNullOrBlank()) {
+                        val fallbackBucket = "gs://$projectId.appspot.com"
+                        println("[FirebaseStorageService] Detected 404; attempting uploadStream with fallback bucket=$fallbackBucket")
+                        val fallbackStorage = FirebaseStorage.getInstance(fallbackBucket)
+                        val fallbackRef = fallbackStorage.reference.child(path)
+
+                        val fallbackTask = if (metadata != null) {
+                            fallbackRef.putStream(stream, metadata)
+                        } else {
+                            fallbackRef.putStream(stream)
+                        }
+                        fallbackTask.await()
+                        return fallbackRef.downloadUrl.await().toString()
+                    }
+                } catch (fe: Exception) {
+                    fe.printStackTrace()
+                    // continuar y relanzar el error original
+                }
+            }
+
+            throw Exception("StorageException(code=$code): $msg", se)
+        } catch (e: Exception) {
+            e.printStackTrace()
+            throw e
+        }
     }
 
     /**

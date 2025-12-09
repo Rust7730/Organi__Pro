@@ -58,7 +58,7 @@ fun LeaderboardItem(
             contentAlignment = Alignment.Center
         ) {
             Text(
-                text = "N",
+                text = "${user.rank}",
                 color = Color.White,
                 fontSize = 16.sp,
                 fontWeight = FontWeight.Bold

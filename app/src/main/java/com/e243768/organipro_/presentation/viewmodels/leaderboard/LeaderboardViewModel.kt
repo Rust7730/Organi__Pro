@@ -58,6 +58,14 @@ class LeaderboardViewModel @Inject constructor(
             }
 
             flow.collect { rankings ->
+                // Si no hay rankings locales, mostrar mensaje para ayudar a depuración
+                if (rankings.isEmpty()) {
+                    _uiState.update { it.copy(isLoading = false, error = "No hay rankings disponibles. Asegúrate de que hay datos en Firestore y sincroniza.") }
+                    return@collect
+                } else {
+                    // limpiar error previo
+                    _uiState.update { it.copy(error = null) }
+                }
                 val uiUsers = rankings.map { rank ->
                     LeaderboardUser(
                         id = rank.userId,
@@ -67,7 +75,10 @@ class LeaderboardViewModel @Inject constructor(
                             "${rank.weeklyPoints} pts"
                         else
                             "${rank.monthlyPoints} pts",
-                        avatarResId = 0, // Placeholder
+                        avatarUrl = rank.avatarUrl,
+                        level = rank.level,
+                        streak = rank.streak,
+                        avatarResId = 0, // Placeholder if no avatarUrl
                         isCurrentUser = rank.userId == currentUserId
                     )
                 }
@@ -90,11 +101,24 @@ class LeaderboardViewModel @Inject constructor(
 
     private fun refreshLeaderboard() {
         viewModelScope.launch {
-            _uiState.update { it.copy(isLoading = true) }
-            // Forzamos la descarga de datos frescos de Firebase
-            leaderboardRepository.updateLeaderboard()
-            // El Flow en observeLeaderboard actualizará la UI cuando la DB local cambie
-            _uiState.update { it.copy(isLoading = false) }
+            _uiState.update { it.copy(isLoading = true, error = null) }
+            // Intentamos obtener directamente los rankings remotos para diagnosticar si vienen vacíos
+            when (val res = leaderboardRepository.fetchLeaderboardFromRemote()) {
+                is Result.Success -> {
+                    val list = res.data
+                    if (list.isEmpty()) {
+                        _uiState.update { it.copy(isLoading = false, error = "Sin rankings remotos (fetched=0). Revisa collection 'user_stats' o 'users' en Firestore.") }
+                    } else {
+                        // Actualizará la DB local y el flow observador refrescará la UI
+                        _uiState.update { it.copy(isLoading = false, error = null) }
+                    }
+                }
+                is Result.Error -> {
+                    val msg = res.message ?: "Error sincronizando leaderboard"
+                    _uiState.update { it.copy(isLoading = false, error = msg) }
+                }
+                else -> _uiState.update { it.copy(isLoading = false) }
+            }
         }
     }
 

@@ -98,9 +98,15 @@ class DailyTasksViewModel @Inject constructor(
             // Asumimos formato "HH:mm" en scheduledTime, ej: "14:00"
             val hourPrefix = String.format("%02d", hour)
 
-            val taskForSlot = tasks.find { task ->
-                task.scheduledTime?.startsWith(hourPrefix) == true
-            }
+            // Filtrar tareas no completadas y con scheduledTime
+            val taskForSlot = tasks
+                .filter { task -> task.status != com.e243768.organipro_.domain.model.TaskStatus.COMPLETED }
+                .find { task ->
+                    val st = task.scheduledTime
+                    st != null && st.startsWith(hourPrefix)
+                }
+
+            println("[DailyTasksVM] slot=$hourPrefix task=${taskForSlot?.id ?: "-"}")
 
             slots.add(
                 TimeSlotData(
