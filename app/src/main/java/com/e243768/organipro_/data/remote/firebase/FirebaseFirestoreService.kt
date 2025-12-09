@@ -109,11 +109,17 @@ class FirebaseFirestoreService(
         merge: Boolean = false
     ) {
         try {
-            val options = if (merge) SetOptions.merge() else SetOptions.overwrite()
-            firestore.collection(collection)
-                .document(documentId)
-                .set(data, options)
-                .await()
+            val documentRef = firestore.collection(collection).document(documentId)
+
+            // CORRECCIÓN: Separar la lógica
+            if (merge) {
+                // Si es merge, usamos SetOptions.merge()
+                documentRef.set(data, SetOptions.merge()).await()
+            } else {
+                // Si NO es merge, usamos set() sin opciones (esto sobrescribe por defecto)
+                documentRef.set(data).await()
+            }
+
         } catch (e: Exception) {
             throw e
         }

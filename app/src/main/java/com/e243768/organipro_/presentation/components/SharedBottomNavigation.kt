@@ -1,109 +1,123 @@
-// presentation/components/SharedBottomNavigation.kt
 package com.e243768.organipro_.presentation.components
 
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.List
-import androidx.compose.material.icons.filled.BarChart
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.EmojiEvents
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Person
-import androidx.compose.material3.BottomAppBar
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Task
+import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.FloatingActionButtonDefaults
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Text
-import androidx.compose.runtime.*
+import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.e243768.organipro_.presentation.navigation.Routes
 
 @Composable
 fun SharedBottomNavigation(
     navController: NavController,
-    currentRoute: String,
-    modifier: Modifier = Modifier
+    currentRoute: String?
 ) {
-    BottomAppBar(
-        containerColor = Color(0xFF2A214D).copy(alpha = 0.95f),
-        modifier = modifier.clip(RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp))
+    Box(
+        modifier = Modifier.fillMaxWidth(),
+        contentAlignment = Alignment.BottomCenter
     ) {
-        val navItems = listOf(
-            BottomNavItemData("Tablero", Icons.Default.BarChart, Routes.Leaderboard),
-            BottomNavItemData("Hogar", Icons.Default.Home, Routes.Home),
-            BottomNavItemData("Tareas", Icons.AutoMirrored.Filled.List, Routes.DailyTasks),
-            BottomNavItemData("Perfil", Icons.Default.Person, Routes.Profile)
-        )
+        // Barra de navegación
+        NavigationBar(
+            containerColor = Color(0xFF1E1C2F), // Color oscuro de fondo
+            contentColor = Color.White,
+            tonalElevation = 8.dp,
+            modifier = Modifier.height(80.dp)
+        ) {
+            // Item 1: ranking
 
-        navItems.forEachIndexed { index, item ->
-            BottomNavItem(
-                label = item.label,
-                icon = item.icon,
-                isSelected = currentRoute == item.route,
-                onClick = {
-                    if (currentRoute != item.route) {
-                        navController.navigate(item.route) {
-                            popUpTo(Routes.Home) {
-                                saveState = true
-                            }
-                            launchSingleTop = true
-                            restoreState = true
-                        }
-                    }
-                }
+            NavigationBarItem(
+                selected = currentRoute == Routes.Leaderboard,
+                onClick = { if (currentRoute != Routes.Leaderboard) navController.navigate(Routes.Leaderboard) },
+                icon = { Icon(Icons.Default.EmojiEvents, contentDescription = "Ranking") },
+                label = { Text("Ranking") },
+                colors = navigationBarItemColors()
+            )
+            // Item 2: Home
+            NavigationBarItem(
+                selected = currentRoute == Routes.Home,
+                onClick = { if (currentRoute != Routes.Home) navController.navigate(Routes.Home) },
+                icon = { Icon(Icons.Default.Home, contentDescription = "Inicio") },
+                label = { Text("Inicio") },
+                colors = navigationBarItemColors()
             )
 
-            // Espaciador en el medio para el FAB (si lo tienes en el futuro)
-            if (index == 1) {
-                Spacer(Modifier.width(72.dp))
-            }
+
+
+            // Espacio vacío para el botón central
+            NavigationBarItem(
+                selected = false,
+                onClick = { },
+                icon = { },
+                enabled = false
+            )
+
+            // Item 3: Perfil
+            NavigationBarItem(
+                selected = currentRoute == Routes.DailyTasks,
+                onClick = { if (currentRoute != Routes.DailyTasks) navController.navigate(Routes.DailyTasks) },
+                icon = { Icon(Icons.Default.Task, contentDescription = "Tarea") },
+                label = { Text("Tareas") },
+                colors = navigationBarItemColors()
+            )
+
+            // Item 4: Configuración (Opcional, o lo que prefieras)
+            NavigationBarItem(
+                selected = currentRoute == Routes.Profile,
+                onClick = { if (currentRoute != Routes.Profile) navController.navigate(Routes.Profile) },
+                icon = { Icon(Icons.Default.Person, contentDescription = "Perfil") },
+                label = { Text("Perfil") },
+                colors = navigationBarItemColors()
+            )
+        }
+
+        // Botón Flotante Central (FAB)
+        FloatingActionButton(
+            onClick = { navController.navigate(Routes.CreateTask) },
+            containerColor = Color(0xFF8A5CFF), // Tu color primario morado
+            contentColor = Color.White,
+            elevation = FloatingActionButtonDefaults.elevation(8.dp),
+            shape = CircleShape,
+            modifier = Modifier
+                .offset(y = (-28).dp) // Lo subimos para que "flote" sobre el borde
+                .size(64.dp)
+        ) {
+            Icon(
+                imageVector = Icons.Default.Add,
+                contentDescription = "Crear Tarea",
+                modifier = Modifier.size(32.dp)
+            )
         }
     }
 }
 
-private data class BottomNavItemData(
-    val label: String,
-    val icon: ImageVector,
-    val route: String
-)
-
 @Composable
-private fun RowScope.BottomNavItem(
-    label: String,
-    icon: ImageVector,
-    isSelected: Boolean,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    val color = if (isSelected) Color.White else Color(0xFFB0AEC3)
-
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center,
-        modifier = modifier
-            .weight(1f)
-            .fillMaxHeight()
-            .clickable(onClick = onClick)
-            .padding(horizontal = 4.dp)
-    ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = label,
-            tint = color,
-            modifier = Modifier.size(28.dp)
-        )
-        Spacer(modifier = Modifier.height(4.dp))
-        Text(
-            text = label,
-            color = color,
-            fontSize = 12.sp,
-            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
-        )
-    }
-}
+private fun navigationBarItemColors() = NavigationBarItemDefaults.colors(
+    selectedIconColor = Color(0xFF8A5CFF),
+    selectedTextColor = Color(0xFF8A5CFF),
+    unselectedIconColor = Color.Gray,
+    unselectedTextColor = Color.Gray,
+    indicatorColor = Color.Transparent // Quitamos el óvalo de selección por defecto
+)

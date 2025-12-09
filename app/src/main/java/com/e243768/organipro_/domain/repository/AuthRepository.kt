@@ -2,6 +2,7 @@ package com.e243768.organipro_.domain.repository
 
 import com.e243768.organipro_.core.result.Result
 import com.e243768.organipro_.domain.model.User
+import kotlinx.coroutines.flow.Flow
 
 interface AuthRepository {
 
@@ -12,8 +13,8 @@ interface AuthRepository {
     suspend fun resetPassword(email: String): Result<Unit>
 
     // Session
+    fun getAuthStateFlow(): Flow<Boolean>
     suspend fun getCurrentUserId(): String?
-    suspend fun isUserLoggedIn(): Boolean
     suspend fun refreshSession(): Result<Unit>
 
     // Profile

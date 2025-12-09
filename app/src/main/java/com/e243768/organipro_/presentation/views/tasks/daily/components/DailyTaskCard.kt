@@ -51,7 +51,7 @@ fun DailyTaskCard(
                 Spacer(modifier = Modifier.width(8.dp))
 
                 Text(
-                    text = task.points,
+                    text = "${task.points} pts",
                     color = Color.White,
                     fontWeight = FontWeight.Bold,
                     fontSize = 12.sp

@@ -1,84 +1,68 @@
 package com.e243768.organipro_.presentation.views.tasks.monthly.components
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import com.e243768.organipro_.presentation.viewmodels.tasks.monthly.MonthDayData
+import com.e243768.organipro_.presentation.viewmodels.tasks.monthly.MonthlyDayData
 
 @Composable
 fun MonthlyDayCell(
-    dayData: MonthDayData,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier
+    dayData: MonthlyDayData,
+    onClick: () -> Unit
 ) {
-    // Si el día es 0, es una celda vacía
-    if (dayData.dayNumber == 0) {
-        Box(
-            modifier = modifier
-                .size(48.dp)
-        )
+    if (dayData.date == null) {
+        // Celda vacía para padding
+        Box(modifier = Modifier.aspectRatio(1f))
         return
     }
 
+    val backgroundColor = if (dayData.isToday) Color(0xFF7A5EFF) else Color.Transparent
+    val textColor = if (dayData.isToday) Color.White else Color.White
+    val borderColor = if (dayData.hasTasks && !dayData.isToday) Color(0xFF7A5EFF) else Color.Transparent
+
     Box(
-        modifier = modifier
-            .size(48.dp)
-            .clip(RoundedCornerShape(8.dp))
-            .background(
-                color = when {
-                    dayData.isSelected -> Color(0xFF8A5CFF) // Día seleccionado
-                    dayData.hasTask -> Color(0xFF7B3DFF).copy(alpha = 0.6f) // Día con tareas
-                    else -> Color(0xFF2A214D) // Día normal
-                }
-            )
-            .clickable(onClick = onClick),
+        modifier = Modifier
+            .aspectRatio(1f)
+            .padding(4.dp)
+            .background(backgroundColor, shape = CircleShape)
+            .border(1.dp, borderColor, shape = CircleShape)
+            .clickable { onClick() },
         contentAlignment = Alignment.Center
     ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
-        ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Text(
-                text = dayData.dayNumber.toString(),
-                color = Color.White,
-                fontSize = 14.sp,
-                fontWeight = if (dayData.isCurrentDay || dayData.isSelected) {
-                    FontWeight.Bold
-                } else {
-                    FontWeight.Normal
-                }
+                text = dayData.dayNumber,
+                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
+                color = textColor
             )
 
-            // Indicador de día actual
-            if (dayData.isCurrentDay && !dayData.isSelected) {
-                Spacer(modifier = Modifier.height(2.dp))
-                Box(
-                    modifier = Modifier
-                        .size(4.dp)
-                        .clip(CircleShape)
-                        .background(Color(0xFF8A5CFF))
-                )
-            }
-
-            // Indicador de tareas
-            if (dayData.hasTask && dayData.taskCount > 0) {
-                Spacer(modifier = Modifier.height(2.dp))
-                Text(
-                    text = "•",
-                    color = Color.White.copy(alpha = 0.7f),
-                    fontSize = 8.sp
-                )
+            // Indicadores de tareas (puntos)
+            if (dayData.hasTasks) {
+                Spacer(modifier = Modifier.height(4.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+                    // Mostrar hasta 3 puntos
+                    repeat(minOf(dayData.totalCount, 3)) { index ->
+                        val isCompletedDot = index < dayData.completedCount
+                        Box(
+                            modifier = Modifier
+                                .size(4.dp)
+                                .background(
+                                    if (isCompletedDot) Color(0xFF00E676) else Color.White.copy(alpha = 0.5f),
+                                    shape = CircleShape
+                                )
+                        )
+                    }
+                }
             }
         }
     }

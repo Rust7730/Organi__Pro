@@ -2,18 +2,25 @@ package com.e243768.organipro_.presentation.viewmodels.tasks.weekly
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.e243768.organipro_.core.util.DateUtils
 import com.e243768.organipro_.domain.model.Task
-import com.e243768.organipro_.presentation.viewmodels.tasks.daily.TaskTab
-import kotlinx.coroutines.delay
+import com.e243768.organipro_.domain.repository.AuthRepository
+import com.e243768.organipro_.domain.repository.TaskRepository
+import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import java.text.SimpleDateFormat
-import java.util.*
+import java.util.Calendar
+import java.util.Date
+import javax.inject.Inject
 
-class WeeklyTasksViewModel : ViewModel() {
+@HiltViewModel
+class WeeklyTasksViewModel @Inject constructor(
+    private val taskRepository: TaskRepository,
+    private val authRepository: AuthRepository
+) : ViewModel() {
 
     private val _uiState = MutableStateFlow(WeeklyTasksUiState())
     val uiState: StateFlow<WeeklyTasksUiState> = _uiState.asStateFlow()
@@ -21,124 +28,98 @@ class WeeklyTasksViewModel : ViewModel() {
     private val _navigationEvent = MutableStateFlow<NavigationEvent?>(null)
     val navigationEvent: StateFlow<NavigationEvent?> = _navigationEvent.asStateFlow()
 
+    private var currentCalendar = Calendar.getInstance()
+
     init {
         loadWeeklyTasks()
     }
 
     fun onEvent(event: WeeklyTasksUiEvent) {
         when (event) {
-            is WeeklyTasksUiEvent.TabSelected -> handleTabSelection(event.tab)
-            is WeeklyTasksUiEvent.TaskClicked -> handleTaskClick(event.task)
-            is WeeklyTasksUiEvent.DaySlotClicked -> handleDaySlotClick(event.day, event.time)
-            is WeeklyTasksUiEvent.BackClicked -> handleBackClick()
-            is WeeklyTasksUiEvent.RefreshTasks -> loadWeeklyTasks()
+            is WeeklyTasksUiEvent.TaskClicked -> _navigationEvent.value = NavigationEvent.NavigateToTaskDetail(event.task.id)
+            is WeeklyTasksUiEvent.DayClicked -> handleDayClick(event.date)
+            is WeeklyTasksUiEvent.PreviousWeekClicked -> changeWeek(-1)
+            is WeeklyTasksUiEvent.NextWeekClicked -> changeWeek(1)
+            is WeeklyTasksUiEvent.BackClicked -> _navigationEvent.value = NavigationEvent.NavigateBack
+            is WeeklyTasksUiEvent.CreateTaskClicked -> _navigationEvent.value = NavigationEvent.NavigateToCreateTask
         }
     }
 
     private fun loadWeeklyTasks() {
         viewModelScope.launch {
-            _uiState.update { it.copy(isLoading = true) }
-
-            delay(1000)
-
-            // Obtener rango de la semana
-            val calendar = Calendar.getInstance(Locale("es", "ES"))
-            calendar.firstDayOfWeek = Calendar.MONDAY
-            calendar.set(Calendar.DAY_OF_WEEK, Calendar.MONDAY)
-
-            val startDate = calendar.time
-            calendar.add(Calendar.DAY_OF_WEEK, 6)
-            val endDate = calendar.time
-
-            val dateFormat = SimpleDateFormat("d 'de' MMMM", Locale("es", "ES"))
-            val weekRange = "Lun. ${dateFormat.format(startDate)} - Dom. ${dateFormat.format(endDate)}"
-
-            // Días de la semana
-            val daysOfWeek = listOf("Lun.", "Mar.", "Mié.", "Jue.", "Vie", "Sáb.", "Dom.")
-
-            // Horarios
-            val timeSlots = listOf(
-                "1:00 a.m.",
-                "2:00 a.m.",
-                "3:00 a.m.",
-                "4:00 a.m.",
-                "5:00 a.m.",
-                "6:00 a.m."
-            )
-
-            // TODO: Cargar desde repository cuando esté implementado
-            val mockWeeklyTasks = generateMockWeeklyTasks()
+            val userId = authRepository.getCurrentUserId() ?: return@launch
 
             _uiState.update {
                 it.copy(
-                    isLoading = false,
-                    weekRange = weekRange,
-                    daysOfWeek = daysOfWeek,
-                    timeSlots = timeSlots,
-                    weeklyTasks = mockWeeklyTasks
+                    isLoading = true,
+                    weekLabel = DateUtils.formatWeekLabel(currentCalendar.time) // Ej: "Sem 42 - Octubre"
                 )
+            }
+
+            // Usamos el repositorio para traer las tareas de esta semana
+            // Nota: Aquí asumimos que getWeekTasks filtra por la semana actual del sistema.
+            // Si queremos paginación (semanas pasadas), deberíamos usar getTasksByDateRange
+            // Por simplicidad usaremos getWeekTasks, pero idealmente pasaríamos rangos.
+
+            taskRepository.getWeekTasks(userId).collect { tasks ->
+                val daysData = mapTasksToWeekDays(tasks, currentCalendar)
+
+                _uiState.update {
+                    it.copy(
+                        isLoading = false,
+                        days = daysData
+                    )
+                }
             }
         }
     }
 
-    private fun generateMockWeeklyTasks(): Map<String, Map<String, WeeklyTaskData>> {
-        // Crear algunas tareas de ejemplo
-        val tasks = mutableMapOf<String, MutableMap<String, WeeklyTaskData>>()
+    private fun mapTasksToWeekDays(tasks: List<Task>, calendar: Calendar): List<WeeklyDayData> {
+        val days = mutableListOf<WeeklyDayData>()
+        val tempCal = calendar.clone() as Calendar
 
-        // Tarea en Lun. a las 3:00 a.m.
-        tasks["Lun."] = mutableMapOf(
-            "3:00 a.m." to WeeklyTaskData(
-                task = Task(
-                    id = "1",
-                    title = "Revisar código",
-                    points = "100pts",
-                    priority = "Media",
-                    time = "3:00 a.m.",
-                    isToday = false
-                ),
-                progress = 0.6f
-            )
-        )
-
-        // Tarea en Mar. a las 2:00 a.m.
-        tasks["Mar."] = mutableMapOf(
-            "2:00 a.m." to WeeklyTaskData(
-                task = Task(
-                    id = "2",
-                    title = "Diseño UI",
-                    points = "150pts",
-                    priority = "Alta",
-                    time = "2:00 a.m.",
-                    isToday = false
-                ),
-                progress = 0.3f
-            )
-        )
-
-        return tasks
-    }
-
-    private fun handleTabSelection(tab: TaskTab) {
-        _uiState.update { it.copy(selectedTab = tab) }
-
-        when (tab) {
-            TaskTab.DAY -> _navigationEvent.value = NavigationEvent.NavigateToDaily
-            TaskTab.WEEK -> loadWeeklyTasks()
-            TaskTab.MONTH -> _navigationEvent.value = NavigationEvent.NavigateToMonthly
+        // Ajustar al lunes de la semana actual
+        tempCal.set(Calendar.DAY_OF_WEEK, Calendar.MONDAY)
+        if (tempCal.firstDayOfWeek == Calendar.SUNDAY && tempCal.get(Calendar.DAY_OF_WEEK) != Calendar.SUNDAY) {
+            // Ajustes menores de localización según sea necesario
         }
+
+        for (i in 0..6) {
+            val date = tempCal.time
+            val isToday = DateUtils.isToday(date)
+
+            // Filtrar tareas para este día específico
+            val tasksForDay = tasks.filter { DateUtils.isSameDay(it.dueDate, date) }
+
+            // Calcular progreso
+            val completed = tasksForDay.count { it.isCompleted() }
+            val progress = if (tasksForDay.isNotEmpty()) completed.toFloat() / tasksForDay.size else 0f
+
+            days.add(
+                WeeklyDayData(
+                    date = date,
+                    dayName = DateUtils.formatDayNameShort(date), // "Lun"
+                    dayNumber = DateUtils.formatDayNumber(date), // "12"
+                    tasks = tasksForDay,
+                    isToday = isToday,
+                    progress = progress
+                )
+            )
+            tempCal.add(Calendar.DAY_OF_MONTH, 1)
+        }
+        return days
     }
 
-    private fun handleTaskClick(task: Task) {
-        _navigationEvent.value = NavigationEvent.NavigateToTaskDetail(task.id)
+    private fun changeWeek(amount: Int) {
+        currentCalendar.add(Calendar.WEEK_OF_YEAR, amount)
+        // Recargar datos para la nueva semana (Nota: si getWeekTasks solo trae "esta" semana,
+        // necesitaríamos cambiar el método del repo a getTasksByDateRange(start, end))
+        loadWeeklyTasks()
     }
 
-    private fun handleDaySlotClick(day: String, time: String) {
-        // TODO: Abrir diálogo para crear tarea en este día/horario
-        println("Day slot clicked: $day at $time")
-    }
-
-    private fun handleBackClick() {
-        _navigationEvent.value = NavigationEvent.NavigateBack
+    private fun handleDayClick(date: Date) {
+        // Podríamos navegar a la vista diaria de esa fecha
+        println("Day clicked: $date")
     }
 
     fun onNavigationHandled() {
@@ -147,8 +128,7 @@ class WeeklyTasksViewModel : ViewModel() {
 
     sealed class NavigationEvent {
         object NavigateBack : NavigationEvent()
-        object NavigateToDaily : NavigationEvent()
-        object NavigateToMonthly : NavigationEvent()
+        object NavigateToCreateTask : NavigationEvent()
         data class NavigateToTaskDetail(val taskId: String) : NavigationEvent()
     }
 }

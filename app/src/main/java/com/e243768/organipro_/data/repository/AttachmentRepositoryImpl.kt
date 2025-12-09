@@ -13,8 +13,9 @@ import com.e243768.organipro_.domain.repository.AttachmentRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import java.io.File
+import javax.inject.Inject
 
-class AttachmentRepositoryImpl(
+class AttachmentRepositoryImpl @Inject constructor(
     private val attachmentDao: AttachmentDao,
     private val firestoreService: FirebaseFirestoreService,
     private val storageService: FirebaseStorageService

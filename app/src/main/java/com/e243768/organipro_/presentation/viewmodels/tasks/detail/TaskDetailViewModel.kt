@@ -1,20 +1,29 @@
 package com.e243768.organipro_.presentation.viewmodels.tasks.detail
 
-import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import kotlinx.coroutines.delay
+import com.e243768.organipro_.core.result.Result
+import com.e243768.organipro_.domain.repository.AttachmentRepository // <--- IMPORTANTE
+import com.e243768.organipro_.domain.repository.AuthRepository
+import com.e243768.organipro_.domain.repository.TaskRepository
+import com.e243768.organipro_.domain.repository.UserRepository
+import com.e243768.organipro_.domain.repository.UserStatsRepository
+import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import javax.inject.Inject
 
-class TaskDetailViewModel(
-    savedStateHandle: SavedStateHandle
+@HiltViewModel
+class TaskDetailViewModel @Inject constructor(
+    private val taskRepository: TaskRepository,
+    private val userStatsRepository: UserStatsRepository,
+    private val userRepository: UserRepository,
+    private val attachmentRepository: AttachmentRepository, // <--- INYECTAR REPO
+    private val authRepository: AuthRepository
 ) : ViewModel() {
-
-    private val taskId: String = savedStateHandle.get<String>("taskId") ?: ""
 
     private val _uiState = MutableStateFlow(TaskDetailUiState())
     val uiState: StateFlow<TaskDetailUiState> = _uiState.asStateFlow()
@@ -22,85 +31,80 @@ class TaskDetailViewModel(
     private val _navigationEvent = MutableStateFlow<NavigationEvent?>(null)
     val navigationEvent: StateFlow<NavigationEvent?> = _navigationEvent.asStateFlow()
 
-    init {
-        loadTaskDetail()
+    fun loadTask(taskId: String) {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoading = true) }
+
+            // 1. Cargar Tarea
+            val taskResult = taskRepository.getTaskById(taskId)
+
+            if (taskResult is Result.Success) {
+                val task = taskResult.data
+
+                // 2. Cargar Adjuntos
+                val attachmentsResult = attachmentRepository.getAttachmentsByTaskId(taskId)
+                val attachments = if (attachmentsResult is Result.Success) attachmentsResult.data else emptyList()
+
+                // 3. Unir todo
+                _uiState.update {
+                    it.copy(
+                        isLoading = false,
+                        task = task.copy(attachments = attachments)
+                    )
+                }
+            } else {
+                _uiState.update { it.copy(isLoading = false, error = "Error al cargar") }
+            }
+        }
     }
 
     fun onEvent(event: TaskDetailUiEvent) {
         when (event) {
-            is TaskDetailUiEvent.BackClicked -> handleBackClick()
-            is TaskDetailUiEvent.EditClicked -> handleEditClick()
-            is TaskDetailUiEvent.DeleteClicked -> handleDeleteClick()
-            is TaskDetailUiEvent.AttachmentClicked -> handleAttachmentClick(event.attachmentId)
-            is TaskDetailUiEvent.MarkAsCompleted -> handleMarkAsCompleted()
+            is TaskDetailUiEvent.CompleteTaskClicked -> handleCompleteTask()
+            is TaskDetailUiEvent.DeleteTaskClicked -> handleDeleteTask()
+            is TaskDetailUiEvent.EditTaskClicked -> {
+                _uiState.value.task?.let { task ->
+                    _navigationEvent.value = NavigationEvent.NavigateToEdit(task.id)
+                }
+            }
+            is TaskDetailUiEvent.BackClicked -> _navigationEvent.value = NavigationEvent.NavigateBack
+            is TaskDetailUiEvent.AttachmentClicked -> { /* Lógica para abrir archivo */ }
         }
     }
 
-    private fun loadTaskDetail() {
+    private fun handleCompleteTask() {
+        val currentTask = _uiState.value.task ?: return
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true) }
+            val userId = authRepository.getCurrentUserId() ?: return@launch
 
-            delay(1000)
-
-            // TODO: Cargar desde repository cuando esté implementado
-            val mockTask = TaskDetailUiState(
-                taskId = taskId,
-                title = "Terminar los diseños de Figma",
-                description = "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum",
-                priority = "Alta",
-                points = "200 pts.",
-                dueDate = "11:59 p.m.",
-                attachments = listOf(
-                    Attachment(
-                        id = "1",
-                        name = "Diseño_final.pdf",
-                        type = "pdf",
-                        size = "2.5 MB"
-                    ),
-                    Attachment(
-                        id = "2",
-                        name = "Referencias.jpg",
-                        type = "image",
-                        size = "1.8 MB"
-                    )
-                ),
-                isCompleted = false,
-                isLoading = false
-            )
-
-            _uiState.value = mockTask
+            if (taskRepository.markTaskAsCompleted(currentTask.id) is Result.Success) {
+                userStatsRepository.incrementTasksCompleted(userId)
+                userStatsRepository.addPoints(userId, 100)
+                userRepository.addPoints(userId, 100)
+                _navigationEvent.value = NavigationEvent.NavigateBack
+            } else {
+                _uiState.update { it.copy(error = "Error al completar") }
+            }
+            _uiState.update { it.copy(isLoading = false) }
         }
     }
 
-    private fun handleBackClick() {
-        _navigationEvent.value = NavigationEvent.NavigateBack
+    private fun handleDeleteTask() {
+        val currentTask = _uiState.value.task ?: return
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoading = true) }
+            if (taskRepository.deleteTask(currentTask.id) is Result.Success) {
+                _navigationEvent.value = NavigationEvent.NavigateBack
+            }
+            _uiState.update { it.copy(isLoading = false) }
+        }
     }
 
-    private fun handleEditClick() {
-        // TODO: Navegar a pantalla de edición
-        println("Edit task: $taskId")
-    }
-
-    private fun handleDeleteClick() {
-        // TODO: Mostrar diálogo de confirmación y eliminar
-        println("Delete task: $taskId")
-    }
-
-    private fun handleAttachmentClick(attachmentId: String) {
-        // TODO: Abrir archivo adjunto
-        println("Open attachment: $attachmentId")
-    }
-
-    private fun handleMarkAsCompleted() {
-        _uiState.update { it.copy(isCompleted = !it.isCompleted) }
-        // TODO: Actualizar en repository
-    }
-
-    fun onNavigationHandled() {
-        _navigationEvent.value = null
-    }
+    fun onNavigationHandled() { _navigationEvent.value = null }
 
     sealed class NavigationEvent {
         object NavigateBack : NavigationEvent()
+        data class NavigateToEdit(val taskId: String) : NavigationEvent()
     }
 }

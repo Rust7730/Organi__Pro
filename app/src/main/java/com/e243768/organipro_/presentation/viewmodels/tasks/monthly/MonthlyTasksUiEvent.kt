@@ -1,12 +1,10 @@
 package com.e243768.organipro_.presentation.viewmodels.tasks.monthly
 
-import com.e243768.organipro_.presentation.viewmodels.tasks.daily.TaskTab
+import java.util.Date
 
 sealed class MonthlyTasksUiEvent {
-    data class TabSelected(val tab: TaskTab) : MonthlyTasksUiEvent()
-    data class DayClicked(val day: Int) : MonthlyTasksUiEvent()
+    data class DayClicked(val date: Date) : MonthlyTasksUiEvent()
+    object PreviousMonthClicked : MonthlyTasksUiEvent()
+    object NextMonthClicked : MonthlyTasksUiEvent()
     object BackClicked : MonthlyTasksUiEvent()
-    object RefreshTasks : MonthlyTasksUiEvent()
-    object PreviousMonth : MonthlyTasksUiEvent()
-    object NextMonth : MonthlyTasksUiEvent()
 }

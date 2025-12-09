@@ -14,6 +14,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.e243768.organipro_.domain.model.Priority
 import com.e243768.organipro_.presentation.viewmodels.tasks.detail.TaskDetailUiState
 
 @Composable
@@ -22,6 +23,9 @@ fun TaskDetailContent(
     onAttachmentClick: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    // 1. Extraemos la tarea del estado. Si es nula, no mostramos nada.
+    val task = uiState.task ?: return
+
     Column(
         modifier = modifier
             .fillMaxWidth()
@@ -29,7 +33,7 @@ fun TaskDetailContent(
     ) {
         // Título
         Text(
-            text = uiState.title,
+            text = task.title, // Acceso correcto a través de 'task'
             color = Color.White,
             fontSize = 22.sp,
             fontWeight = FontWeight.Bold
@@ -44,14 +48,17 @@ fun TaskDetailContent(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
+                // Lógica de color basada en el Enum Priority
+                val priorityColor = when (task.priority) {
+                    Priority.ALTA -> Color(0xFFFF6B6B)   // Rojo
+                    Priority.MEDIA -> Color(0xFFFFC700) // Amarillo
+                    Priority.BAJA -> Color(0xFF4CAF50)    // Verde
+                }
+
                 Icon(
                     imageVector = Icons.Default.Warning,
                     contentDescription = "Prioridad",
-                    tint = when (uiState.priority) {
-                        "Alta" -> Color(0xFFFF6B6B)
-                        "Media" -> Color(0xFFFFC700)
-                        else -> Color(0xFF4CAF50)
-                    },
+                    tint = priorityColor,
                     modifier = Modifier.size(20.dp)
                 )
                 Spacer(modifier = Modifier.width(8.dp))
@@ -60,20 +67,22 @@ fun TaskDetailContent(
                     color = Color.White,
                     fontSize = 14.sp
                 )
+                // Mapeo del nombre del Enum a Español
                 Text(
-                    text = uiState.priority,
-                    color = when (uiState.priority) {
-                        "Alta" -> Color(0xFFFF6B6B)
-                        "Media" -> Color(0xFFFFC700)
-                        else -> Color(0xFF4CAF50)
+                    text = when (task.priority) {
+                        Priority.ALTA -> "Alta"
+                        Priority.MEDIA -> "Media"
+                        Priority.BAJA -> "Baja"
                     },
+                    color = priorityColor,
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Bold
                 )
             }
 
+            // Puntos (Calculado o fijo, ya que no viene directo en Task)
             Text(
-                text = uiState.points,
+                text = "100 XP",
                 color = Color.White,
                 fontSize = 16.sp,
                 fontWeight = FontWeight.Bold
@@ -102,7 +111,7 @@ fun TaskDetailContent(
         Spacer(modifier = Modifier.height(12.dp))
 
         Text(
-            text = uiState.description,
+            text = task.description, // Acceso correcto
             color = Color(0xFFB0AEC3),
             fontSize = 14.sp,
             lineHeight = 20.sp
@@ -118,32 +127,18 @@ fun TaskDetailContent(
         Spacer(modifier = Modifier.height(24.dp))
 
         // Archivos adjuntos
-        if (uiState.attachments.isNotEmpty()) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(
-                    imageVector = Icons.Default.Description,
-                    contentDescription = "Archivos",
-                    tint = Color.White,
-                    modifier = Modifier.size(20.dp)
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = "Archivos adjuntos:",
-                    color = Color.White,
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold
-                )
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            uiState.attachments.forEach { attachment ->
-                AttachmentItem(
-                    attachment = attachment,
-                    onClick = { onAttachmentClick(attachment.id) }
-                )
-                Spacer(modifier = Modifier.height(12.dp))
-            }
+        // Nota: Actualmente 'Task' no tiene lista de adjuntos.
+        // Dejamos esto preparado para cuando actualices el modelo.
+        /* if (task.attachments.isNotEmpty()) {
+             // ... Tu código de adjuntos ...
+             // Por ahora lo comentamos para que compile
         }
+        */
+        // Mensaje temporal si quieres mostrar algo
+        Text(
+            text = "Sin archivos adjuntos",
+            color = Color.Gray,
+            fontSize = 12.sp
+        )
     }
 }

@@ -2,14 +2,23 @@ package com.e243768.organipro_.presentation.viewmodels.leaderboard
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import kotlinx.coroutines.delay
+import com.e243768.organipro_.core.result.Result
+import com.e243768.organipro_.domain.repository.AuthRepository
+import com.e243768.organipro_.domain.repository.LeaderboardRepository
+import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import javax.inject.Inject
 
-class LeaderboardViewModel : ViewModel() {
+@HiltViewModel
+class LeaderboardViewModel @Inject constructor(
+    private val leaderboardRepository: LeaderboardRepository,
+    private val authRepository: AuthRepository
+) : ViewModel() {
 
     private val _uiState = MutableStateFlow(LeaderboardUiState())
     val uiState: StateFlow<LeaderboardUiState> = _uiState.asStateFlow()
@@ -17,110 +26,86 @@ class LeaderboardViewModel : ViewModel() {
     private val _navigationEvent = MutableStateFlow<NavigationEvent?>(null)
     val navigationEvent: StateFlow<NavigationEvent?> = _navigationEvent.asStateFlow()
 
+    private var leaderboardJob: Job? = null
+
     init {
-        loadLeaderboard()
+        // Al iniciar, cargamos datos locales y pedimos actualización remota
+        refreshLeaderboard()
+        observeLeaderboard()
     }
 
     fun onEvent(event: LeaderboardUiEvent) {
         when (event) {
             is LeaderboardUiEvent.TabSelected -> handleTabSelection(event.tab)
             is LeaderboardUiEvent.UserClicked -> handleUserClick(event.userId)
-            is LeaderboardUiEvent.RefreshLeaderboard -> loadLeaderboard()
+            is LeaderboardUiEvent.RefreshLeaderboard -> refreshLeaderboard()
         }
     }
 
-    private fun loadLeaderboard() {
-        viewModelScope.launch {
-            _uiState.update { it.copy(isLoading = true) }
+    private fun observeLeaderboard() {
+        // Cancelamos observación anterior si cambiamos de tab
+        leaderboardJob?.cancel()
 
-            delay(1000)
+        leaderboardJob = viewModelScope.launch {
+            val currentUserId = authRepository.getCurrentUserId() ?: ""
+            val selectedTab = _uiState.value.selectedTab
 
-            // TODO: Cargar desde repository cuando esté implementado
-            val mockData = generateMockLeaderboard()
+            // Seleccionamos el flujo según el tab (Semanal o Mensual)
+            val flow = if (selectedTab == LeaderboardTab.WEEKLY) {
+                leaderboardRepository.getWeeklyTopRankings()
+            } else {
+                leaderboardRepository.getMonthlyTopRankings()
+            }
 
-            _uiState.update {
-                it.copy(
-                    isLoading = false,
-                    currentUser = mockData.first,
-                    topThree = mockData.second.take(3),
-                    otherUsers = mockData.second.drop(3)
-                )
+            flow.collect { rankings ->
+                val uiUsers = rankings.map { rank ->
+                    LeaderboardUser(
+                        id = rank.userId,
+                        name = rank.getDisplayName(),
+                        rank = rank.rank,
+                        points = if (selectedTab == LeaderboardTab.WEEKLY)
+                            "${rank.weeklyPoints} pts"
+                        else
+                            "${rank.monthlyPoints} pts",
+                        avatarResId = 0, // Placeholder
+                        isCurrentUser = rank.userId == currentUserId
+                    )
+                }
+
+                val currentUser = uiUsers.find { it.isCurrentUser }
+                val topThree = uiUsers.take(3)
+                val others = uiUsers.drop(3)
+
+                _uiState.update {
+                    it.copy(
+                        isLoading = false,
+                        currentUser = currentUser,
+                        topThree = topThree,
+                        otherUsers = others
+                    )
+                }
             }
         }
     }
 
-    private fun generateMockLeaderboard(): Pair<LeaderboardUser, List<LeaderboardUser>> {
-        val currentUser = LeaderboardUser(
-            id = "current",
-            name = "RustlessCar7730",
-            rank = 10,
-            points = "15,240 pts.",
-            isCurrentUser = true
-        )
-
-        val topUsers = listOf(
-            LeaderboardUser(
-                id = "1",
-                name = "Usuario",
-                rank = 1,
-                points = "25,500 pts."
-            ),
-            LeaderboardUser(
-                id = "2",
-                name = "Usuario",
-                rank = 2,
-                points = "23,100 pts."
-            ),
-            LeaderboardUser(
-                id = "3",
-                name = "Usuario",
-                rank = 3,
-                points = "21,800 pts."
-            ),
-            LeaderboardUser(
-                id = "4",
-                name = "Usuario",
-                rank = 4,
-                points = "19,500 pts."
-            ),
-            LeaderboardUser(
-                id = "5",
-                name = "Usuario",
-                rank = 5,
-                points = "18,200 pts."
-            ),
-            LeaderboardUser(
-                id = "6",
-                name = "Usuario",
-                rank = 6,
-                points = "17,100 pts."
-            ),
-            LeaderboardUser(
-                id = "7",
-                name = "Usuario",
-                rank = 7,
-                points = "16,500 pts."
-            ),
-            LeaderboardUser(
-                id = "8",
-                name = "Usuario",
-                rank = 8,
-                points = "15,800 pts."
-            ),
-            currentUser
-        )
-
-        return Pair(currentUser, topUsers)
+    private fun refreshLeaderboard() {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoading = true) }
+            // Forzamos la descarga de datos frescos de Firebase
+            leaderboardRepository.updateLeaderboard()
+            // El Flow en observeLeaderboard actualizará la UI cuando la DB local cambie
+            _uiState.update { it.copy(isLoading = false) }
+        }
     }
 
     private fun handleTabSelection(tab: LeaderboardTab) {
         _uiState.update { it.copy(selectedTab = tab) }
-        loadLeaderboard() // Recargar con nueva tab
+        observeLeaderboard() // Re-observar con el nuevo filtro
     }
 
     private fun handleUserClick(userId: String) {
-        // TODO: Navegar a perfil de usuario
-        println("User clicked: $userId")
+        // TODO: Navegar al perfil público del usuario
+        println("Click en usuario: $userId")
     }
 
     fun onNavigationHandled() {

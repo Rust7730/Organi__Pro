@@ -11,8 +11,9 @@ import com.e243768.organipro_.domain.model.UserStats
 import com.e243768.organipro_.domain.repository.UserStatsRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import javax.inject.Inject
 
-class UserStatsRepositoryImpl(
+class UserStatsRepositoryImpl @Inject constructor(
     private val userStatsDao: UserStatsDao,
     private val taskDao: TaskDao,
     private val firestoreService: FirebaseFirestoreService

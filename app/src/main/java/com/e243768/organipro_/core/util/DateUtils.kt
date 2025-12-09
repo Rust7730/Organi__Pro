@@ -39,6 +39,63 @@ object DateUtils {
         return format.format(date)
     }
 
+    // --- NUEVOS MÉTODOS AÑADIDOS ---
+
+    /**
+     * Etiqueta para la vista semanal (Ej: "Sem 42 - Octubre")
+     */
+    fun formatWeekLabel(date: Date): String {
+        val cal = Calendar.getInstance(spanishLocale)
+        cal.time = date
+        val week = cal.get(Calendar.WEEK_OF_YEAR)
+        val monthFormat = SimpleDateFormat("MMMM", spanishLocale)
+        return "Sem $week - ${monthFormat.format(date).capitalize()}"
+    }
+
+    /**
+     * Nombre corto del día (Ej: "Lun", "Mar")
+     */
+    fun formatDayNameShort(date: Date): String {
+        // "EEE" da el día abreviado (Lun., Mar.)
+        val format = SimpleDateFormat("EEE", spanishLocale)
+        return format.format(date).replace(".", "").capitalize()
+    }
+
+    /**
+     * Número del día (Ej: "12")
+     */
+    fun formatDayNumber(date: Date): String {
+        val format = SimpleDateFormat("d", spanishLocale)
+        return format.format(date)
+    }
+
+    /**
+     * Etiqueta para el mes (Ej: "Octubre 2023")
+     */
+    fun formatMonthYear(date: Date): String {
+        val format = SimpleDateFormat("MMMM yyyy", spanishLocale)
+        return format.format(date).capitalize()
+    }
+
+    /**
+     * Verifica si dos fechas corresponden al mismo día
+     */
+    fun isSameDay(date1: Date?, date2: Date?): Boolean {
+        if (date1 == null || date2 == null) return false
+        val cal1 = Calendar.getInstance()
+        val cal2 = Calendar.getInstance()
+        cal1.time = date1
+        cal2.time = date2
+        return cal1.get(Calendar.YEAR) == cal2.get(Calendar.YEAR) &&
+                cal1.get(Calendar.DAY_OF_YEAR) == cal2.get(Calendar.DAY_OF_YEAR)
+    }
+
+    private fun String.capitalize(): String {
+        return this.replaceFirstChar { if (it.isLowerCase()) it.titlecase(spanishLocale) else it.toString() }
+    }
+
+    // --- FIN NUEVOS MÉTODOS ---
+
     /**
      * Obtiene el inicio del día actual
      */
@@ -111,9 +168,7 @@ object DateUtils {
      * Verifica si una fecha es hoy
      */
     fun isToday(date: Date): Boolean {
-        val today = getStartOfDay()
-        val target = getStartOfDay(date)
-        return today == target
+        return isSameDay(date, Date())
     }
 
     /**
@@ -122,9 +177,7 @@ object DateUtils {
     fun isTomorrow(date: Date): Boolean {
         val calendar = Calendar.getInstance()
         calendar.add(Calendar.DAY_OF_MONTH, 1)
-        val tomorrow = getStartOfDay(calendar.time)
-        val target = getStartOfDay(date)
-        return tomorrow == target
+        return isSameDay(date, calendar.time)
     }
 
     /**
@@ -134,7 +187,7 @@ object DateUtils {
         val startOfWeek = getStartOfWeek()
         val endOfWeek = getEndOfWeek()
         return date.after(startOfWeek) && date.before(endOfWeek) ||
-                date == startOfWeek || date == endOfWeek
+                isSameDay(date, startOfWeek) || isSameDay(date, endOfWeek)
     }
 
     /**
