@@ -69,6 +69,12 @@ class FirebaseFirestoreService(
             val query = queryBuilder(baseQuery)
 
             val snapshot = query.get().await()
+            // Si se pide Map::class.java, devolvemos el mapa crudo (document.data) para evitar problemas de toObject
+            if (clazz == Map::class.java) {
+                @Suppress("UNCHECKED_CAST")
+                return snapshot.documents.mapNotNull { it.data as? T }
+            }
+
             snapshot.documents.mapNotNull { it.toObject(clazz) }
         } catch (e: Exception) {
             throw e

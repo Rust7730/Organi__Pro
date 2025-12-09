@@ -140,5 +140,39 @@ fun TaskDetailContent(
             color = Color.Gray,
             fontSize = 12.sp
         )
+        // ... (código previo)
+
+        // Sección de Archivos Adjuntos
+        if (uiState.task?.attachments?.isNotEmpty() == true) { // Verificación segura
+            Spacer(modifier = Modifier.height(24.dp))
+
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    imageVector = Icons.Default.Description, // O AttachFile
+                    contentDescription = "Archivos",
+                    tint = Color.White,
+                    modifier = Modifier.size(20.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "Archivos adjuntos:",
+                    color = Color.White,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Iterar y mostrar
+            uiState.task.attachments.forEach { attachment ->
+                // Asegúrate de tener un componente AttachmentItem o usa este genérico:
+                AttachmentItem(
+                    attachment = attachment,
+                    onClick = { onAttachmentClick(attachment.id) } // El ID que pasas aquí
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+            }
+        }
     }
 }

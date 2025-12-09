@@ -68,7 +68,7 @@ class HomeViewModel @Inject constructor(
                             _uiState.update { state ->
                                 state.copy(
                                     userName = user.getDisplayName(),
-                                    userLevel = "Lv.${user.level}",
+                                    userLevel = user.level, // CORREGIDO: Se pasa el Int, la UI formatea
                                     streak = user.currentStreak,
                                     avatarResId = 0
                                 )
@@ -97,7 +97,7 @@ class HomeViewModel @Inject constructor(
             // 3. Observar tareas de la semana
             launch {
                 taskRepository.getWeekTasks(userId)
-                    .catch { }
+                    .catch { } 
                     .collect { tasks ->
                         _uiState.update { state ->
                             // FILTRO AGREGADO: Pendientes y que no sean de hoy

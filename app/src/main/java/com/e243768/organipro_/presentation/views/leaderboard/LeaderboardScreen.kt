@@ -13,7 +13,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
-import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.e243768.organipro_.presentation.components.SharedBottomNavigation
 import com.e243768.organipro_.presentation.navigation.Routes
@@ -51,7 +50,8 @@ fun LeaderboardScreen(
                     currentUser = uiState.currentUser,
                     onSettingsClick = {
                         navController.navigate(Routes.Settings)
-                    }
+                    },
+                    onAvatarClick = { navController.navigate(Routes.Profile) }
                 )
             },
             bottomBar = {
@@ -71,47 +71,66 @@ fun LeaderboardScreen(
                     CircularProgressIndicator(color = Color.White)
                 }
             } else {
-                LazyColumn(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(paddingValues),
-                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 16.dp)
-                ) {
-                    // Tabs
-                    item {
-                        Text(
-                            text = if (uiState.selectedTab.name == "WEEKLY") {
-                                "Top semanal"
-                            } else {
-                                "Top mensual"
-                            },
-                            color = Color.White,
-                            fontSize = 20.sp,
-                            fontWeight = FontWeight.Bold,
-                            modifier = Modifier.padding(bottom = 16.dp)
-                        )
-                    }
-
-                    // Top 3
-                    item {
-                        TopThreeCard(
-                            users = uiState.topThree,
-                            onUserClick = { userId ->
-                                viewModel.onEvent(LeaderboardUiEvent.UserClicked(userId))
+                // Mostrar error si lo hay
+                if (!uiState.error.isNullOrBlank()) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(paddingValues),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text(text = uiState.error ?: "Error desconocido", color = Color.White)
+                            Spacer(modifier = Modifier.height(12.dp))
+                            Button(onClick = { viewModel.onEvent(LeaderboardUiEvent.RefreshLeaderboard) }) {
+                                Text(text = "Reintentar")
                             }
-                        )
-                        Spacer(modifier = Modifier.height(24.dp))
+                        }
                     }
+                } else {
+                    LazyColumn(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(paddingValues),
+                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 16.dp)
+                    ) {
+                        // Tabs
+                        item {
+                            Text(
+                                text = if (uiState.selectedTab.name == "WEEKLY") {
+                                    "Top semanal"
+                                } else {
+                                    "Top mensual"
+                                },
+                                color = Color.White,
+                                fontSize = 20.sp,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.padding(bottom = 16.dp)
+                            )
+                        }
 
-                    // Resto de usuarios
-                    items(uiState.otherUsers) { user ->
-                        LeaderboardItem(
-                            user = user,
-                            onClick = {
-                                viewModel.onEvent(LeaderboardUiEvent.UserClicked(user.id))
-                            }
-                        )
-                        Spacer(modifier = Modifier.height(12.dp))
+                        // Top 3
+                        item {
+                            TopThreeCard(
+                                users = uiState.topThree,
+                                onUserClick = { userId ->
+                                    viewModel.onEvent(LeaderboardUiEvent.UserClicked(userId))
+                                }
+                            )
+                            Spacer(modifier = Modifier.height(24.dp))
+                        }
+
+                        // Resto de usuarios
+                        items(uiState.otherUsers) { user ->
+                            LeaderboardItem(
+                                user = user,
+                                onClick = {
+                                    navController.navigate(Routes.Profile)
+                                    //viewModel.onEvent(LeaderboardUiEvent.UserClicked(user.id))
+                                }
+                            )
+                            Spacer(modifier = Modifier.height(12.dp))
+                        }
                     }
                 }
             }

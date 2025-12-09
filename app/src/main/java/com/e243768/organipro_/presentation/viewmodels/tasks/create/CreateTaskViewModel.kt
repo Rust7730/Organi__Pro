@@ -1,6 +1,7 @@
 package com.e243768.organipro_.presentation.viewmodels.tasks.create
 
 import android.net.Uri
+import android.content.Context
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -13,6 +14,7 @@ import com.e243768.organipro_.domain.repository.AttachmentRepository
 import com.e243768.organipro_.domain.repository.AuthRepository
 import com.e243768.organipro_.domain.repository.TaskRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -29,7 +31,8 @@ class CreateTaskViewModel @Inject constructor(
     private val taskRepository: TaskRepository,
     private val attachmentRepository: AttachmentRepository,
     private val authRepository: AuthRepository,
-    savedStateHandle: SavedStateHandle // <--- Recibe el ID de navegación
+    savedStateHandle: SavedStateHandle, // <--- Recibe el ID de navegación
+    @ApplicationContext private val context: Context
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(CreateTaskUiState())
@@ -49,37 +52,67 @@ class CreateTaskViewModel @Inject constructor(
 
     private fun loadTaskForEdit(taskId: String) {
         viewModelScope.launch {
-            _uiState.update { it.copy(isLoading = true, isEditing = true) }
+            try {
+                _uiState.update { it.copy(isLoading = true, isEditing = true) }
 
-            val taskResult = taskRepository.getTaskById(taskId)
-            if (taskResult is Result.Success) {
-                val task = taskResult.data
+                // 1. Cargar Tarea de forma segura
+                val taskResult = taskRepository.getTaskById(taskId)
 
-                // Cargar hora para la UI
-                val timeInMillis = try {
-                    val date = SimpleDateFormat("HH:mm", Locale.getDefault()).parse(task.scheduledTime ?: "")
-                    val cal = java.util.Calendar.getInstance()
-                    val tCal = java.util.Calendar.getInstance().apply { time = date ?: Date() }
-                    cal.set(java.util.Calendar.HOUR_OF_DAY, tCal.get(java.util.Calendar.HOUR_OF_DAY))
-                    cal.set(java.util.Calendar.MINUTE, tCal.get(java.util.Calendar.MINUTE))
-                    cal.timeInMillis
-                } catch (e: Exception) { null }
+                if (taskResult is Result.Success) {
+                    val task = taskResult.data
 
+                    // 2. Cargar Adjuntos (ignorando errores de adjuntos para no bloquear la edición)
+                    val attachments = try {
+                        val attResult = attachmentRepository.getAttachmentsByTaskId(taskId)
+                        if (attResult is Result.Success) attResult.data else emptyList()
+                    } catch (e: Exception) {
+                        emptyList()
+                    }
+
+                    // 3. Procesar Hora (Punto crítico de crashes)
+                    val timeInMillis = try {
+                        task.scheduledTime?.let { timeStr ->
+                            val sdf = SimpleDateFormat("HH:mm", Locale.getDefault())
+                            val date = sdf.parse(timeStr)
+                            val cal = java.util.Calendar.getInstance()
+                            val tCal = java.util.Calendar.getInstance().apply { time = date ?: Date() }
+                            cal.set(java.util.Calendar.HOUR_OF_DAY, tCal.get(java.util.Calendar.HOUR_OF_DAY))
+                            cal.set(java.util.Calendar.MINUTE, tCal.get(java.util.Calendar.MINUTE))
+                            cal.timeInMillis
+                        }
+                    } catch (e: Exception) {
+                        // Si falla el parseo, simplemente no mostramos hora, pero NO crasheamos
+                        null
+                    }
+
+                    // 4. Actualizar UI
+                    _uiState.update {
+                        it.copy(
+                            title = task.title,
+                            description = task.description,
+                            category = task.tags.firstOrNull() ?: "General",
+                            priority = task.priority,
+                            dueDate = task.dueDate,
+                            dueTime = timeInMillis,
+                            existingAttachments = attachments,
+                            isLoading = false
+                        )
+                    }
+                } else {
+                    _uiState.update { it.copy(isLoading = false, error = "No se encontró la tarea") }
+                }
+            } catch (e: Exception) {
+                // CAPTURA FINAL DE CUALQUIER CRASH
                 _uiState.update {
                     it.copy(
-                        title = task.title,
-                        description = task.description,
-                        category = task.tags.firstOrNull() ?: "General",
-                        priority = task.priority,
-                        dueDate = task.dueDate,
-                        dueTime = timeInMillis,
-                        isLoading = false
+                        isLoading = false,
+                        error = "Error inesperado al cargar: ${e.localizedMessage}"
                     )
                 }
+                e.printStackTrace()
             }
         }
     }
-
     // ... (onEvent sigue igual) ...
     fun onEvent(event: CreateTaskUiEvent) {
         when (event) {
@@ -157,12 +190,15 @@ class CreateTaskViewModel @Inject constructor(
 
     private suspend fun saveAttachments(taskId: String, uris: List<Uri>) {
         uris.forEach { uri ->
+            val resolvedMime = try { context.contentResolver.getType(uri) ?: "application/octet-stream" } catch (_: Exception) { "application/octet-stream" }
+            // Log para diagnóstico: registrar el URI y mimeType que se guardan en la BD
+            println("[CreateTaskViewModel] Saving attachment - uri=${uri} mime=$resolvedMime")
             val attachment = Attachment(
                 id = UUID.randomUUID().toString(),
                 taskId = taskId,
                 name = uri.lastPathSegment ?: "Adjunto",
                 type = AttachmentType.OTHER,
-                mimeType = "application/octet-stream",
+                mimeType = resolvedMime,
                 size = 0,
                 url = "",
                 localPath = uri.toString(),

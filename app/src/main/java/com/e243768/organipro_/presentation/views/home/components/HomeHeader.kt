@@ -1,6 +1,7 @@
 package com.e243768.organipro_.presentation.views.home.components
 
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
@@ -18,19 +19,20 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.e243768.organipro_.R
 
 @Composable
 fun HomeHeader(
     userName: String,
-    userLevel: String,
+    userLevel: Int,
     streak: Int,
     avatarResId: Int,
     onSettingsClick: () -> Unit,
-    modifier: Modifier = Modifier.statusBarsPadding()
+    modifier: Modifier = Modifier,
+    onAvatarClick: (() -> Unit)? = null
 ) {
     Row(
         modifier = modifier
+            .statusBarsPadding()
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 20.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -46,6 +48,7 @@ fun HomeHeader(
                     modifier = Modifier
                         .size(48.dp)
                         .clip(CircleShape)
+                        .let { m -> if (onAvatarClick != null) m.clickable { onAvatarClick() } else m }
                 )
             } else {
                 // Placeholder circular
@@ -53,9 +56,7 @@ fun HomeHeader(
                     modifier = Modifier
                         .size(48.dp)
                         .clip(CircleShape)
-                        .then(
-                            Modifier
-                        ),
+                        .let { m -> if (onAvatarClick != null) m.clickable { onAvatarClick() } else m },
                     contentAlignment = Alignment.Center
                 ) {
                     androidx.compose.foundation.Canvas(modifier = Modifier.fillMaxSize()) {
@@ -74,7 +75,7 @@ fun HomeHeader(
                     fontSize = 16.sp
                 )
                 Text(
-                    text = userLevel,
+                    text = "Lv.${userLevel}",
                     color = Color(0xFFB0AEC3),
                     fontSize = 14.sp
                 )

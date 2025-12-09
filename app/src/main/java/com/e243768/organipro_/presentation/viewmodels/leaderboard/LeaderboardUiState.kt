@@ -14,6 +14,9 @@ data class LeaderboardUser(
     val name: String,
     val rank: Int,
     val points: String,
+    val avatarUrl: String? = null,
+    val level: Int = 1,
+    val streak: Int = 0,
     val avatarResId: Int = 0,
     val isCurrentUser: Boolean = false
 )

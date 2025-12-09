@@ -15,6 +15,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import android.util.Log
 
 @HiltViewModel
 class TaskDetailViewModel @Inject constructor(
@@ -68,7 +69,7 @@ class TaskDetailViewModel @Inject constructor(
                 }
             }
             is TaskDetailUiEvent.BackClicked -> _navigationEvent.value = NavigationEvent.NavigateBack
-            is TaskDetailUiEvent.AttachmentClicked -> { /* Lógica para abrir archivo */ }
+            is TaskDetailUiEvent.AttachmentClicked -> handleAttachmentClick(event.attachmentId)
         }
     }
 
@@ -101,10 +102,50 @@ class TaskDetailViewModel @Inject constructor(
         }
     }
 
+    private fun handleAttachmentClick(attachmentId: String) {
+        viewModelScope.launch {
+            try {
+                val res = attachmentRepository.getAttachmentById(attachmentId)
+                if (res is Result.Success) {
+                    var attachment = res.data
+
+                    // Si no hay URL pero existe localPath, intentar subir
+                    if (attachment.url.isBlank() && !attachment.localPath.isNullOrBlank()) {
+                        val up = attachmentRepository.uploadAttachment(attachment, attachment.localPath!!)
+                        if (up is Result.Success) {
+                            attachment = up.data
+                        } else if (up is Result.Error) {
+                            // Mostrar mensaje específico y loggear excepción
+                            val msg = up.message
+                            _uiState.update { it.copy(error = "Error subiendo adjunto: ${msg}") }
+                            up.exception?.printStackTrace()
+                            return@launch
+                        } else {
+                            _uiState.update { it.copy(error = "Error subiendo adjunto") }
+                            return@launch
+                        }
+                    }
+
+                    if (attachment.url.isNotBlank()) {
+                        _navigationEvent.value = NavigationEvent.NavigateOpenAttachment(attachment.url, attachment.mimeType)
+                    } else {
+                        _uiState.update { it.copy(error = "No se puede abrir el adjunto: sin URL") }
+                    }
+                } else {
+                    _uiState.update { it.copy(error = "Adjunto no encontrado") }
+                }
+            } catch (e: Exception) {
+                Log.e("TaskDetailVM", "Error al manejar attachment click", e)
+                _uiState.update { it.copy(error = "Error al abrir adjunto: ${e.message}") }
+            }
+        }
+    }
+
     fun onNavigationHandled() { _navigationEvent.value = null }
 
     sealed class NavigationEvent {
         object NavigateBack : NavigationEvent()
         data class NavigateToEdit(val taskId: String) : NavigationEvent()
+        data class NavigateOpenAttachment(val url: String, val mimeType: String?) : NavigationEvent()
     }
 }
