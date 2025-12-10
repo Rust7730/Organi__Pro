@@ -118,8 +118,9 @@ class WeeklyTasksViewModel @Inject constructor(
     }
 
     private fun handleDayClick(date: Date) {
-        // Podríamos navegar a la vista diaria de esa fecha
-        println("Day clicked: $date")
+        _uiState.update {
+            it.copy(selectedDate = date)
+        }
     }
 
     fun onNavigationHandled() {

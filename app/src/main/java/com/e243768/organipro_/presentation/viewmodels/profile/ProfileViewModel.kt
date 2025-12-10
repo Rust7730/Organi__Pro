@@ -13,7 +13,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
-
+import android.net.Uri
 @HiltViewModel
 class ProfileViewModel @Inject constructor(
     private val userRepository: UserRepository,
@@ -36,10 +36,50 @@ class ProfileViewModel @Inject constructor(
             is ProfileUiEvent.SettingsClicked -> handleSettingsClick()
             is ProfileUiEvent.AvatarClicked -> handleAvatarClick()
             is ProfileUiEvent.RefreshProfile -> loadProfile()
+            is ProfileUiEvent.PhotoSelected -> uploadProfilePhoto(event.uri)
         }
     }
+// En ProfileViewModel.kt
 
-    private fun loadProfile() {
+    private fun uploadProfilePhoto(uri: Uri) {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoading = true) }
+
+            val userId = authRepository.getCurrentUserId()
+            if (userId == null) {
+                _uiState.update { it.copy(isLoading = false, error = "Sesión no válida") }
+                return@launch
+            }
+
+            // Llama a la función que ya creaste en el repositorio
+            val result = userRepository.updateProfilePhoto(userId, uri)
+
+            when (result) {
+                is Result.Success -> {
+                    val newUrl = result.data
+                    // Actualiza el estado de la UI inmediatamente con la nueva URL
+                    _uiState.update {
+                        it.copy(
+                            isLoading = false,
+                            photoUrl = newUrl,
+                            // Limpia cualquier error previo
+                            error = null
+                        )
+                    }
+                }
+                is Result.Error -> {
+                    _uiState.update {
+                        it.copy(
+                            isLoading = false,
+                            error = result.message ?: "Error al subir imagen"
+                        )
+                    }
+                }
+
+                Result.Loading -> TODO()
+            }
+        }
+    }    private fun loadProfile() {
         viewModelScope.launch {
             // 1. Obtener ID del usuario actual
             val userId = authRepository.getCurrentUserId()

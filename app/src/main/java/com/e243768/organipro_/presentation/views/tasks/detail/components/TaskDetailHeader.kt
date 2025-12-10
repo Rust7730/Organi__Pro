@@ -40,14 +40,14 @@ fun TaskDetailHeader(
             }
         },
         actions = {
-            IconButton(onClick = onEditClick) {
-                Icon(
-                    imageVector = Icons.Default.Edit,
-                    contentDescription = "Editar",
-                    tint = Color.White,
-                    modifier = Modifier.size(24.dp)
-                )
-            }
+//            IconButton(onClick = onEditClick) {
+//                Icon(
+//                    imageVector = Icons.Default.Edit,
+//                    contentDescription = "Editar",
+//                    tint = Color.White,
+//                    modifier = Modifier.size(24.dp)
+//                )
+//            }
             IconButton(onClick = onDeleteClick) {
                 Icon(
                     imageVector = Icons.Default.Delete,

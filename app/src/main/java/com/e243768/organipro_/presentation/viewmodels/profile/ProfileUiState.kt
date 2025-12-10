@@ -3,6 +3,7 @@ package com.e243768.organipro_.presentation.viewmodels.profile
 data class ProfileUiState(
     val userName: String = "",
     val userAlias: String = "",
+    val photoUrl: String? = null, // <--- AGREGA ESTO
     val currentLevel: Int = 0,
     val currentXP: Int = 0,
     val maxXP: Int = 100,

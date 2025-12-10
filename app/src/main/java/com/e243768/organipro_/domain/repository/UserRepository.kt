@@ -1,11 +1,13 @@
 package com.e243768.organipro_.domain.repository
 
+import android.net.Uri
 import com.e243768.organipro_.core.result.Result
 import com.e243768.organipro_.domain.model.User
 import kotlinx.coroutines.flow.Flow
 
 interface UserRepository {
 
+    suspend fun updateProfilePhoto(userId: String, imageUri: Uri): Result<String>
     // Local operations
     suspend fun getUserById(userId: String): Result<User>
     fun getUserByIdFlow(userId: String): Flow<User?>

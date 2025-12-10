@@ -1,6 +1,8 @@
 package com.e243768.organipro_.presentation.views.tasks.monthly
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
@@ -12,10 +14,12 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
-import androidx.navigation.compose.currentBackStackEntryAsState // Importante importar
+import androidx.navigation.compose.currentBackStackEntryAsState
+import com.e243768.organipro_.core.util.DateUtils
 import com.e243768.organipro_.presentation.components.SharedBottomNavigation
 import com.e243768.organipro_.presentation.viewmodels.tasks.monthly.MonthlyTasksUiEvent
 import com.e243768.organipro_.presentation.viewmodels.tasks.monthly.MonthlyTasksViewModel
+import com.e243768.organipro_.presentation.views.home.components.TaskCard // <--- AGREGADO
 import com.e243768.organipro_.presentation.views.tasks.monthly.components.MonthlyGrid
 import com.e243768.organipro_.ui.theme.GradientWithStarsBackground
 
@@ -28,7 +32,6 @@ fun MonthlyTasksScreen(
     val uiState by viewModel.uiState.collectAsState()
     val navigationEvent by viewModel.navigationEvent.collectAsState()
 
-    // 1. Obtenemos la ruta actual
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
 
@@ -43,7 +46,6 @@ fun MonthlyTasksScreen(
     }
 
     Scaffold(
-        // 2. Pasamos el parámetro currentRoute
         bottomBar = {
             SharedBottomNavigation(
                 navController = navController,
@@ -63,7 +65,7 @@ fun MonthlyTasksScreen(
                     .fillMaxSize()
                     .padding(16.dp)
             ) {
-                // Header Calendario
+                // --- Header Calendario ---
                 Row(
                     modifier = Modifier.fillMaxWidth().padding(bottom = 24.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -84,11 +86,52 @@ fun MonthlyTasksScreen(
                     }
                 }
 
-                // Grid Mensual
+                // --- Grid Mensual ---
                 MonthlyGrid(
                     days = uiState.days,
                     onDayClick = { viewModel.onEvent(MonthlyTasksUiEvent.DayClicked(it)) }
                 )
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                // --- Lista de Tareas para el Día Seleccionado ---
+                // Buscamos el día que coincida con la fecha seleccionada
+                val selectedDayData = uiState.days.find {
+                    it.date != null && DateUtils.isSameDay(it.date, uiState.selectedDate)
+                }
+
+                val tasksForSelectedDay = selectedDayData?.tasks ?: emptyList()
+
+                Text(
+                    text = "Tareas del ${DateUtils.formatDayNameShort(uiState.selectedDate)} ${DateUtils.formatDayNumber(uiState.selectedDate)}",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = Color.White,
+                    modifier = Modifier.padding(bottom = 16.dp)
+                )
+
+                LazyColumn(
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                    contentPadding = PaddingValues(bottom = 16.dp)
+                ) {
+                    if (tasksForSelectedDay.isEmpty()) {
+                        item {
+                            Text(
+                                text = "No hay tareas para este día",
+                                color = Color.Gray,
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                        }
+                    } else {
+                        items(tasksForSelectedDay) { task ->
+                            TaskCard(
+                                task = task,
+                                onClick = {
+
+                                }
+                            )
+                        }
+                    }
+                }
             }
 
             if (uiState.isLoading) {
