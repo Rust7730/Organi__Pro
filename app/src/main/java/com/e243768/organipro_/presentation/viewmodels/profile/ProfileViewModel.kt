@@ -39,27 +39,47 @@ class ProfileViewModel @Inject constructor(
             is ProfileUiEvent.PhotoSelected -> uploadProfilePhoto(event.uri)
         }
     }
+// En ProfileViewModel.kt
+
     private fun uploadProfilePhoto(uri: Uri) {
         viewModelScope.launch {
-            // marcar carga
             _uiState.update { it.copy(isLoading = true) }
 
-            // validar usuario
             val userId = authRepository.getCurrentUserId()
             if (userId == null) {
                 _uiState.update { it.copy(isLoading = false, error = "Sesión no válida") }
                 return@launch
             }
 
-            // TODO: implementar subida a Firebase Storage y actualizar documento de usuario en Firestore.
-            // Ejemplo (no implementado aquí): val url = storageRepo.upload(uri, "avatars/$userId") ...
-            println("uploadProfilePhoto: uri=$uri userId=$userId")
+            // Llama a la función que ya creaste en el repositorio
+            val result = userRepository.updateProfilePhoto(userId, uri)
 
-            // finalizar carga
-            _uiState.update { it.copy(isLoading = false) }
+            when (result) {
+                is Result.Success -> {
+                    val newUrl = result.data
+                    // Actualiza el estado de la UI inmediatamente con la nueva URL
+                    _uiState.update {
+                        it.copy(
+                            isLoading = false,
+                            photoUrl = newUrl,
+                            // Limpia cualquier error previo
+                            error = null
+                        )
+                    }
+                }
+                is Result.Error -> {
+                    _uiState.update {
+                        it.copy(
+                            isLoading = false,
+                            error = result.message ?: "Error al subir imagen"
+                        )
+                    }
+                }
+
+                Result.Loading -> TODO()
+            }
         }
-    }
-    private fun loadProfile() {
+    }    private fun loadProfile() {
         viewModelScope.launch {
             // 1. Obtener ID del usuario actual
             val userId = authRepository.getCurrentUserId()

@@ -332,15 +332,16 @@ class UserRepositoryImpl @Inject constructor(
                 ?: return Result.Error("Error al subir imagen a Cloudinary") // Corrección: String primero
 
             // 2. Actualizar en Firebase (Usando tu firestoreService existente)
+// En UserRepositoryImpl.kt, dentro de updateProfilePhoto
+
             firestoreService.updateDocument(
                 collection = FirebaseConstants.COLLECTION_USERS,
                 documentId = userId,
                 updates = mapOf(
-                    "photoUrl" to photoUrl,
+                    "avatarUrl" to photoUrl, // <--- CAMBIA "photoUrl" POR "avatarUrl" para coincidir con tu modelo User
                     "updatedAt" to com.google.firebase.Timestamp.now()
                 )
             )
-
             // 3. Actualizar en Base de datos Local (DAO)
             userDao.updatePhotoUrl(userId, photoUrl)
 
